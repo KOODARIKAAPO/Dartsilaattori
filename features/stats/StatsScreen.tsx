@@ -1,7 +1,16 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Button, Card, Divider, Text } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Button,
+  Card,
+  Divider,
+  Surface,
+  Text,
+  useTheme,
+} from "react-native-paper";
 import { useFocusEffect } from "@react-navigation/native";
+import type { MD3Theme } from "react-native-paper";
 
 import { auth, subscribeToAuthChanges } from "../../firebase/Auth";
 import {
@@ -50,21 +59,36 @@ type StatRowProps = {
   label: string;
   value: string;
   helper?: string;
+  theme: MD3Theme;
 };
 
-function StatRow({ label, value, helper }: StatRowProps) {
+function StatRow({ label, value, helper, theme }: StatRowProps) {
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.row}>
       <View style={styles.rowText}>
-        <Text style={styles.label}>{label}</Text>
-        {helper ? <Text style={styles.helper}>{helper}</Text> : null}
+        <Text variant="bodyMedium" style={styles.label}>
+          {label}
+        </Text>
+        {helper ? (
+          <Text variant="bodySmall" style={styles.helper}>
+            {helper}
+          </Text>
+        ) : null}
       </View>
-      <Text style={styles.value}>{value}</Text>
+
+      <Text variant="titleMedium" style={styles.value}>
+        {value}
+      </Text>
     </View>
   );
 }
 
 export default function StatsScreen() {
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
   const [uid, setUid] = useState<string | null>(auth.currentUser?.uid ?? null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [averages, setAverages] = useState<RecentAverages | null>(null);
@@ -76,6 +100,7 @@ export default function StatsScreen() {
     const unsubscribe = subscribeToAuthChanges((user) => {
       setUid(user?.uid ?? null);
     });
+
     return unsubscribe;
   }, []);
 
@@ -94,11 +119,13 @@ export default function StatsScreen() {
 
     try {
       await createUserStatsIfMissing(uid);
+
       const [statsData, averagesData, insightsData] = await Promise.all([
         getUserStats(uid),
         getRecentAverages(uid),
         getLast30DaysInsights(uid),
       ]);
+
       setStats(statsData);
       setAverages(averagesData);
       setInsights(insightsData);
@@ -117,20 +144,28 @@ export default function StatsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.infoText}>Ladataan tilastoja...</Text>
+      <View style={styles.screen}>
+        <Surface style={styles.stateSurface} elevation={1}>
+          <ActivityIndicator size="large" />
+          <Text variant="bodyLarge" style={styles.infoText}>
+            Ladataan tilastoja...
+          </Text>
+        </Surface>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button mode="contained" onPress={loadStats} style={styles.centerButton}>
-          Yrita uudelleen
-        </Button>
+      <View style={styles.screen}>
+        <Surface style={styles.stateSurface} elevation={1}>
+          <Text variant="bodyLarge" style={styles.errorText}>
+            {error}
+          </Text>
+          <Button mode="contained" onPress={loadStats} style={styles.centerButton}>
+            Yritä uudelleen
+          </Button>
+        </Surface>
       </View>
     );
   }
@@ -139,220 +174,279 @@ export default function StatsScreen() {
   const currentAverages = averages ?? emptyAverages;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Omat tilastot</Text>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      <Text variant="headlineMedium" style={styles.title}>
+        Omat tilastot
+      </Text>
+
       {!uid ? (
-        <Card style={styles.noticeCard}>
+        <Card style={styles.noticeCard} mode="contained">
           <Card.Content>
-            <Text style={styles.noticeTitle}>Et ole kirjautunut</Text>
-            <Text style={styles.noticeText}>
-              Naytetaan esimerkkitilastot. Oikeat tilastot tulevat
-              nakyville, kun kirjaudut sisaan.
+            <Text variant="titleMedium" style={styles.noticeTitle}>
+              Et ole kirjautunut
+            </Text>
+            <Text variant="bodyMedium" style={styles.noticeText}>
+              Näytetään esimerkkitilastot. Oikeat tilastot tulevat näkyville,
+              kun kirjaudut sisään.
             </Text>
           </Card.Content>
         </Card>
       ) : null}
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="elevated">
         <Card.Content>
-          <Text style={styles.cardTitle}>Yleiskatsaus</Text>
+          <Text variant="titleLarge" style={styles.cardTitle}>
+            Yleiskatsaus
+          </Text>
+
           <StatRow
+            theme={theme}
             label="Kolmen tikan keskiarvo"
             value={formatNumber(currentStats.threeDartAverage, 2)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
+            theme={theme}
             label="Pelit"
             value={formatInt(currentStats.gamesPlayed)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
+            theme={theme}
             label="Yhteispisteet"
             value={formatInt(currentStats.totalPoints)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
+            theme={theme}
             label="Heitetyt tikat"
             value={formatInt(currentStats.totalDartsThrown)}
           />
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="elevated">
         <Card.Content>
-          <Text style={styles.cardTitle}>Doubles</Text>
+          <Text variant="titleLarge" style={styles.cardTitle}>
+            Doubles
+          </Text>
+
           <StatRow
+            theme={theme}
             label="Osumat"
             value={formatInt(currentStats.doublesHit)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
+            theme={theme}
             label="Yritykset"
             value={formatInt(currentStats.doublesAttempted)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
+            theme={theme}
             label="Osumaprosentti"
             value={formatPercent(currentStats.doublePercentage, 1)}
           />
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="elevated">
         <Card.Content>
-          <Text style={styles.cardTitle}>Ennatykset</Text>
+          <Text variant="titleLarge" style={styles.cardTitle}>
+            Ennätykset
+          </Text>
+
           <StatRow
+            theme={theme}
             label="Paras legi (tikkaa)"
             value={formatInt(currentStats.bestLegDarts)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
+            theme={theme}
             label="Korkein checkout"
             value={formatInt(currentStats.highestCheckout)}
           />
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="elevated">
         <Card.Content>
-          <Text style={styles.cardTitle}>Viimeisimmat keskiarvot</Text>
+          <Text variant="titleLarge" style={styles.cardTitle}>
+            Viimeisimmät keskiarvot
+          </Text>
+
           <StatRow
-            label="Viimeiset 10 pelia"
+            theme={theme}
+            label="Viimeiset 10 peliä"
             value={formatNumber(currentAverages.last10Avg, 2)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
-            label="Viimeiset 25 pelia"
+            theme={theme}
+            label="Viimeiset 25 peliä"
             value={formatNumber(currentAverages.last25Avg, 2)}
           />
           <Divider style={styles.divider} />
+
           <StatRow
-            label="Viimeiset 50 pelia"
+            theme={theme}
+            label="Viimeiset 50 peliä"
             value={formatNumber(currentAverages.last50Avg, 2)}
           />
         </Card.Content>
       </Card>
 
-      <Card style={styles.card}>
+      <Card style={styles.card} mode="elevated">
         <Card.Content>
-          <Text style={styles.cardTitle}>Viimeiset 30 paivaa</Text>
+          <Text variant="titleLarge" style={styles.cardTitle}>
+            Viimeiset 30 päivää
+          </Text>
+
           {insights ? (
             <>
               <StatRow
+                theme={theme}
                 label="Keskiarvo"
                 value={formatNumber(insights.avg, 2)}
               />
               <Divider style={styles.divider} />
+
               <StatRow
+                theme={theme}
                 label="Doubles %"
                 value={formatPercent(insights.doublePct, 1)}
               />
               <Divider style={styles.divider} />
+
               <StatRow
+                theme={theme}
                 label="Pelit"
                 value={formatInt(insights.games)}
               />
               <Divider style={styles.divider} />
+
               <StatRow
+                theme={theme}
                 label="Trendi"
                 value={formatNumber(insights.trend, 2)}
-                helper="positiivinen = paranee"
+                helper="Positiivinen = paranee"
               />
             </>
           ) : (
-            <Text style={styles.emptyText}>Ei tarpeeksi dataa.</Text>
+            <Text variant="bodyMedium" style={styles.emptyText}>
+              Ei tarpeeksi dataa.
+            </Text>
           )}
         </Card.Content>
       </Card>
 
       <Button mode="outlined" onPress={loadStats} style={styles.refreshButton}>
-        Paivita tilastot
+        Päivitä tilastot
       </Button>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  card: {
-    marginBottom: 16,
-  },
-  noticeCard: {
-    marginBottom: 16,
-    backgroundColor: "#fef9c3",
-  },
-  noticeTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  noticeText: {
-    fontSize: 14,
-    color: "#4b5563",
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  rowText: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  label: {
-    fontSize: 14,
-    color: "#4b5563",
-  },
-  helper: {
-    fontSize: 12,
-    color: "#9ca3af",
-    marginTop: 2,
-  },
-  value: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  divider: {
-    marginVertical: 2,
-  },
-  infoText: {
-    textAlign: "center",
-    color: "#6b7280",
-    marginTop: 8,
-  },
-  errorText: {
-    textAlign: "center",
-    color: "#b91c1c",
-    marginBottom: 12,
-  },
-  centerButton: {
-    marginTop: 4,
-  },
-  emptyText: {
-    color: "#6b7280",
-  },
-  refreshButton: {
-    marginTop: 4,
-  },
-});
+const createStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    screen: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    container: {
+      padding: 16,
+      paddingBottom: 32,
+    },
+    stateSurface: {
+      margin: 24,
+      padding: 24,
+      borderRadius: theme.roundness * 3,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+    },
+    title: {
+      marginBottom: 16,
+      color: theme.colors.onBackground,
+      fontWeight: "700",
+    },
+    card: {
+      marginBottom: 16,
+      backgroundColor: theme.colors.surface,
+    },
+    noticeCard: {
+      marginBottom: 16,
+      backgroundColor: theme.colors.secondaryContainer,
+    },
+    noticeTitle: {
+      marginBottom: 6,
+      color: theme.colors.onSecondaryContainer,
+      fontWeight: "700",
+    },
+    noticeText: {
+      color: theme.colors.onSecondaryContainer,
+      lineHeight: 20,
+    },
+    cardTitle: {
+      marginBottom: 12,
+      color: theme.colors.onSurface,
+      fontWeight: "700",
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+    },
+    rowText: {
+      flex: 1,
+      paddingRight: 12,
+    },
+    label: {
+      color: theme.colors.onSurface,
+    },
+    helper: {
+      marginTop: 4,
+      color: theme.colors.onSurfaceVariant,
+    },
+    value: {
+      color: theme.colors.onSurface,
+      fontWeight: "700",
+    },
+    divider: {
+      marginVertical: 2,
+      backgroundColor: theme.colors.outlineVariant,
+    },
+    infoText: {
+      marginTop: 12,
+      textAlign: "center",
+      color: theme.colors.onSurface,
+    },
+    errorText: {
+      textAlign: "center",
+      marginBottom: 12,
+      color: theme.colors.error,
+    },
+    centerButton: {
+      marginTop: 4,
+    },
+    emptyText: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    refreshButton: {
+      marginTop: 4,
+    },
+  });
