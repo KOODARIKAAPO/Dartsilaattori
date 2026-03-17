@@ -3,13 +3,13 @@ import { getApps } from 'firebase/app';
 import {
     initializeAuth,
     getAuth,
+    getReactNativePersistence,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
     User,
-} from 'firebase/auth';
-import { getReactNativePersistence } from '@firebase/auth';
+} from '@firebase/auth';
 import { app } from './Config';
 
 //auth initialisointi
