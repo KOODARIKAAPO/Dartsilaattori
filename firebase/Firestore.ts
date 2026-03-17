@@ -16,6 +16,13 @@ import {
 
 export const db = getFirestore(app);
 
+// käyttäjäprofiili
+export type UserProfile = {
+  displayName: string;
+  premiumMirror: boolean;
+  createdAt?: unknown;
+};
+
 //käyttäjän tilastot
 export type UserStats = {
   totalPoints: number;
@@ -25,6 +32,11 @@ export type UserStats = {
   doublesAttempted: number;
   doublePercentage: number;
   gamesPlayed: number;
+  bestLegDarts: number;
+  highestCheckout: number;
+  last10Avg?: number;
+  last25Avg?: number;
+  last50Avg?: number;
   updatedAt?: unknown;
 };
 
@@ -36,6 +48,51 @@ export type GameInput = {
   doublesAttempted: number;
   checkout?: number | null;
   won?: boolean;
+};
+
+type GameRecord = GameInput & {
+  deleted?: boolean;
+};
+
+// 30 päivän insightit
+export type Last30DaysInsights = {
+  avg: number;
+  doublePct: number;
+  games: number;
+  trend: number;
+  updatedAt?: unknown;
+};
+
+export type RecentAverages = {
+  last10Avg: number;
+  last25Avg: number;
+  last50Avg: number;
+};
+
+// käyttäjäprofiilin luonti jos puuttuu
+export const createUserProfileIfMissing = async (
+  uid: string,
+  displayName: string,
+  premiumMirror = false
+) => {
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      displayName,
+      premiumMirror,
+      createdAt: serverTimestamp(),
+    });
+  }
+};
+
+// käyttäjäprofiilin haku
+export const getUserProfile = async (uid: string) => {
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return snap.data() as UserProfile;
 };
 
 //käyttäjän statsien alustus
@@ -52,6 +109,8 @@ export const createUserStatsIfMissing = async (uid: string) => {
       doublesAttempted: 0,
       doublePercentage: 0,
       gamesPlayed: 0,
+      bestLegDarts: 0,
+      highestCheckout: 0,
       updatedAt: serverTimestamp(),
     });
   }
@@ -89,6 +148,8 @@ export const addGameForUser = async (uid: string, game: GameInput) => {
         doublesAttempted: 0,
         doublePercentage: 0,
         gamesPlayed: 0,
+        bestLegDarts: 0,
+        highestCheckout: 0,
       };
       //5. tilastot lasketaan juuri lisätyillä arvoilla
   const totalPoints = current.totalPoints + game.points;
@@ -96,6 +157,14 @@ export const addGameForUser = async (uid: string, game: GameInput) => {
   const doublesHit = current.doublesHit + game.doublesHit;
   const doublesAttempted = current.doublesAttempted + game.doublesAttempted;
   const gamesPlayed = current.gamesPlayed + 1;
+  const highestCheckout = Math.max(
+    current.highestCheckout || 0,
+    game.checkout || 0
+  );
+  const bestLegDarts =
+    current.bestLegDarts > 0
+      ? Math.min(current.bestLegDarts, game.dartsThrown)
+      : game.dartsThrown;
 
   const threeDartAverage =
     totalDartsThrown > 0 ? (totalPoints / totalDartsThrown) * 3 : 0;
@@ -113,6 +182,8 @@ export const addGameForUser = async (uid: string, game: GameInput) => {
       doublesAttempted,
       doublePercentage,
       gamesPlayed,
+      bestLegDarts,
+      highestCheckout,
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -129,4 +200,58 @@ export const getRecentGames = async (uid: string, max = 20) => {
     id: doc.id,
     ...doc.data(),
   }));
+};
+
+// laskee viimeisten pelien 3-dart keskiarvot on-demand
+export const getRecentAverages = async (uid: string): Promise<RecentAverages> => {
+  const gamesRef = collection(db, 'users', uid, 'games');
+  const q = query(gamesRef, orderBy('createdAt', 'desc'), limit(50));
+  const snapshot = await getDocs(q);
+
+  const games = snapshot.docs
+    .map((doc) => doc.data() as GameRecord)
+    .filter((g) => !g.deleted);
+
+  const computeAvg = (n: number) => {
+    const slice = games.slice(0, n);
+    let points = 0;
+    let darts = 0;
+    for (const g of slice) {
+      if (typeof g.points === 'number' && typeof g.dartsThrown === 'number') {
+        points += g.points;
+        darts += g.dartsThrown;
+      }
+    }
+    return darts > 0 ? (points / darts) * 3 : 0;
+  };
+
+  return {
+    last10Avg: computeAvg(10),
+    last25Avg: computeAvg(25),
+    last50Avg: computeAvg(50),
+  };
+};
+
+// 30 päivän insighttien haku
+export const getLast30DaysInsights = async (uid: string) => {
+  const ref = doc(db, 'users', uid, 'insights', 'last_30_days');
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return snap.data() as Last30DaysInsights;
+};
+
+// 30 päivän insighttien päivitys
+export const setLast30DaysInsights = async (
+  uid: string,
+  insights: Last30DaysInsights
+) => {
+  const ref = doc(db, 'users', uid, 'insights', 'last_30_days');
+  await setDoc(
+    ref,
+    {
+      ...insights,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
 };
