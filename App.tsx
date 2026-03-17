@@ -1,12 +1,11 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-import GameScreen from './features/games/screens/GameScreen';
+import { Provider as PaperProvider } from "react-native-paper";
+import Navigation from "./app/Navigation";
+import { theme } from "./ui/Theme";
 
 export default function App() {
   return (
-    <>
-      <GameScreen />
-      <StatusBar style="auto" />
-    </>
+    <PaperProvider theme={theme}>
+      <Navigation />
+    </PaperProvider>
   );
 }
