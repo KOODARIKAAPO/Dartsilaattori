@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // käyttäjäprofiili
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      // käyttäjän pelit
+      match /games/{gameId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // käyttäjän insightit
+      match /insights/{insightId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // käyttäjän tilastot
+    match /stats/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+  }
+}
