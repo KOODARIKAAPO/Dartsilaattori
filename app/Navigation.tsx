@@ -6,6 +6,7 @@ import HomeScreen from "../features/home/HomeScreen";
 import FriendsScreen from "../features/friends/FriendsScreen";
 import StatsScreen from "../features/stats/StatsScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
+import X01Screen from "../features/games/screens/X01Screen";
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,12 @@ export default function Navigation() {
           name="SelectGame" 
           component={SelectGameScreen} 
           options={{ title: "Valitse peli" }}
+        />
+
+        <Stack.Screen 
+          name="X01" 
+          component={X01Screen} 
+          options={{ title: "X01" }}
         />
 
       </Stack.Navigator>
