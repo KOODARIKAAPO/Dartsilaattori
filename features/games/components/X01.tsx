@@ -4,6 +4,8 @@ import {Button, Text, TextInput, Surface, useTheme,} from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 import { useX01Game } from "../hooks/useX01Game";
 import { useScoreInput } from "../hooks/useScoreInput";
+import Numpad from "../components/NumPad";
+import { useNumpad } from "../hooks/useNumpad";
 
 export function GameScreen() {
   const theme = useTheme();
@@ -18,6 +20,14 @@ export function GameScreen() {
     addThrow(parsedValue);
     clear();
   };
+
+  const handleNumberPress = (num: number) => {
+  setValue(prev => prev + num.toString());
+};
+
+const handleBackspace = () => {
+  setValue(prev => prev.slice(0, -1));
+};
 
   return (
     <Surface style={styles.root} elevation={0}>
@@ -41,6 +51,7 @@ export function GameScreen() {
           label="Syötä pisteet"
           value={value}
           onChangeText={setValue}
+          editable={false}
           keyboardType="numeric"
           style={styles.input}
         />
@@ -87,6 +98,11 @@ export function GameScreen() {
           </Surface>
         ))}
       </ScrollView>
+
+      <Numpad
+       onNumberPress={handleNumberPress}
+       onBackspace={handleBackspace}
+      />
     </Surface>
   );
 }
