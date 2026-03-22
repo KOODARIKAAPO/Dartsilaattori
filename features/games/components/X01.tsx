@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import {Button, Text, TextInput, Surface, useTheme,} from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
@@ -6,6 +6,7 @@ import { useX01Game } from "../hooks/useX01Game";
 import { useScoreInput } from "../hooks/useScoreInput";
 import Numpad from "../components/NumPad";
 import { useNumpad } from "../hooks/useNumpad";
+import DartsKeyboard from "../components/Dartskeyboard";
 
 export function GameScreen() {
   const theme = useTheme();
@@ -21,6 +22,10 @@ export function GameScreen() {
     clear();
   };
 
+  const [keyboardType, setKeyboardType] = useState<"numpad" | "darts">("numpad");
+
+
+  // Näppämistön napit, handleNumberPress ja handleBackspace
   const handleNumberPress = (num: number) => {
   setValue(prev => prev + num.toString());
 };
@@ -99,11 +104,32 @@ const handleBackspace = () => {
         ))}
       </ScrollView>
 
-      <Numpad
-       onNumberPress={handleNumberPress}
-       onBackspace={handleBackspace}
+      <View style={{ alignItems: "flex-end", marginBottom: 8 }}>
+  <Button
+    mode="outlined"
+    onPress={() =>
+      setKeyboardType(prev => (prev === "numpad" ? "darts" : "numpad"))
+    }
+  >
+    {keyboardType === "numpad" ? "Darts-näppäimistö" : "Numeronäppäimistö"}
+  </Button>
+</View>
+
+      {keyboardType === "numpad" ? (
+    <Numpad
+      onNumberPress={handleNumberPress}
+      onBackspace={handleBackspace}
+    />
+    ) : (
+    <DartsKeyboard
+        onThrow={(value, multiplier) => {
+         addThrow(value * multiplier);
+       }}
+       onUndo={undoThrow}
+       onReset={reset}
       />
-    </Surface>
+      )}
+      </Surface>
   );
 }
 
