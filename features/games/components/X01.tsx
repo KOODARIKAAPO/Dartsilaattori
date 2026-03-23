@@ -1,54 +1,179 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
-import {Button, Text, TextInput, Surface, useTheme} from "react-native-paper";
+import {Button, Text, Surface, useTheme} from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 import { useX01Game } from "../hooks/useX01Game";
-import { useScoreInput } from "../hooks/useScoreInput";
+import DartsKeyboard from "./Dartskeyboard";
+import type { X01Variant } from "../../../types/X01Types";
 
-export function GameScreen() {
+//Pää pelikomponentti. 
+
+type PlayerInput = {
+  id: string;
+  name: string;
+};
+
+interface GameScreenProps {
+  startingScore: X01Variant;
+  players: PlayerInput[];
+  bestOf?: 1 | 3 | 5 | 7;
+}
+
+export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProps) 
+{
   const theme = useTheme();
   const styles = createStyles(theme);
+  const outlinedTextColor = theme.colors.onSurface;
 
+  // Tuodaan pelin tile ja logiikka useX01Game hookista
   const {
-    players,
+    players: gamePlayers,
     currentPlayer,
     round,
-    turns,
     winnerId,
     isFinished,
     submitPlayerTurn,
     undo,
+    startNextLeg,
+    resetMatch,
     reset,
   } = useX01Game({
-    startingScore: 501,
-    players: [
-      { id: "p1", name: "Pelaaja 1" },
-      { id: "p2", name: "Pelaaja 2" },
-    ],
+    startingScore,
+    players,
   });
 
-  const { value, setValue, parsedValue, isValid, clear } = useScoreInput();
+  // Ottelun (best-of) tila: voitetut legiät per pelaaja
+  const [matchWins, setMatchWins] = useState<Record<string, number>>(() =>
+    players.reduce(
+      (acc, player) => ({ ...acc, [player.id]: 0 }),
+      {} as Record<string, number>
+    )
+  );
+  // Ottelun voittaja (kun best-of täyttyy)
+  const [matchWinnerId, setMatchWinnerId] = useState<string | null>(null);
+  // Keskeneräisen vuoron heitot (1–3 tikkaa)
+  const [pendingDarts, setPendingDarts] = useState<number[]>([]);
 
-  const winner = players.find((player) => player.id === winnerId) ?? null;
+  // Ottelun tilalaskelmat
+  const winsNeeded = Math.ceil(bestOf / 2);
+  const legsPlayed = Object.values(matchWins).reduce(
+    (sum, value) => sum + value,
+    0
+  );
 
-  const handleSubmit = () => {
-    if (parsedValue === null) return;
-    submitPlayerTurn(parsedValue);
-    clear();
+  const winner = gamePlayers.find((player) => player.id === winnerId) ?? null;
+  const matchWinner =
+    gamePlayers.find((player) => player.id === matchWinnerId) ?? null;
+  const isMatchFinished = matchWinnerId !== null;
+  const currentLeg = Math.min(
+    legsPlayed + (isMatchFinished ? 0 : 1),
+    bestOf
+  );
+  const pendingMatchWin =
+    winnerId != null
+      ? (matchWins[winnerId] ?? 0) + 1 >= winsNeeded
+      : false;
+  // Vuoron kertymä (vaikuttaa reaaliaikaiseen pistetilanteeseen)
+  const pendingTotal = pendingDarts.reduce((sum, dart) => sum + dart, 0);
+  const showPending =
+    pendingDarts.length > 0 && !isFinished && !isMatchFinished;
+  const previewScore = (currentScore: number) => {
+    if (!showPending) return currentScore;
+    const remaining = currentScore - pendingTotal;
+    return remaining >= 0 ? remaining : currentScore;
+  };
+
+  useEffect(() => {
+    // Best-of 1: merkitään ottelu valmiiksi heti legin päätyttyä
+    if (bestOf !== 1) return;
+    if (!isFinished || !winnerId) return;
+    if (matchWinnerId) return;
+
+    setMatchWins((prev) => ({
+      ...prev,
+      [winnerId]: (prev[winnerId] ?? 0) + 1,
+    }));
+    setMatchWinnerId(winnerId);
+  }, [bestOf, isFinished, winnerId, matchWinnerId]);
+
+  const handleThrow = (value: number, multiplier: 1 | 2 | 3) => {
+    // Lisätään tikka vuoroon; vaihdetaan pelaaja vasta 3 heiton jälkeen
+    if (isFinished || isMatchFinished) return;
+    const points = value * multiplier;
+
+    setPendingDarts((prev) => {
+      if (prev.length >= 3) return prev;
+      const next = [...prev, points];
+
+      if (next.length === 3) {
+        const total = next.reduce((sum, dart) => sum + dart, 0);
+        // TODO: Tallenna vuoron kokonaispisteet ja tikkojen määrä (statistiikka)
+        // TODO: Laske tuplien osumat ja tuplien yritykset
+        submitPlayerTurn(total);
+        return [];
+      }
+
+      return next;
+    });
+  };
+
+  const handleUndo = () => {
+    // Peru ensisijaisesti viimeisin tikka; jos ei ole, peru koko vuoro
+    if (isMatchFinished) return;
+    setPendingDarts((prev) => {
+      if (prev.length > 0) {
+        return prev.slice(0, -1);
+      }
+      undo();
+      return prev;
+    });
+  };
+
+  const handleResetLeg = () => {
+    // Nollaa legi ja keskeneräiset heitot
+    if (isMatchFinished) return;
+    setPendingDarts([]);
+    reset();
+  };
+
+  const handleNextLeg = () => {
+    // Kirjaa legin voitto ja siirry seuraavaan legiin
+    if (!winnerId) return;
+    // TODO: Tallenna legin/matsin tilastot backendille tässä vaiheessa
+    const nextWins = {
+      ...matchWins,
+      [winnerId]: (matchWins[winnerId] ?? 0) + 1,
+    };
+    setMatchWins(nextWins);
+
+    if (nextWins[winnerId] >= winsNeeded) {
+      setMatchWinnerId(winnerId);
+      return;
+    }
+
+    setPendingDarts([]);
+    startNextLeg();
+  };
+
+  const handleResetMatch = () => {
+    // Nollaa koko ottelu (voitot + legi)
+    // TODO: Varmista, ettei keskeneräinen ottelu ylikirjoita tallennettuja tilastoja
+    const resetWins = players.reduce(
+      (acc, player) => ({ ...acc, [player.id]: 0 }),
+      {} as Record<string, number>
+    );
+    setMatchWins(resetWins);
+    setMatchWinnerId(null);
+    setPendingDarts([]);
+    resetMatch();
   };
 
   return (
     <Surface style={styles.root} elevation={0}>
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Yläkortti: vuorossa oleva pelaaja ja ottelun tila */}
         <Surface style={styles.headerCard} elevation={1}>
-          <Text variant="titleMedium" style={styles.label}>
-            Kierros
-          </Text>
-          <Text variant="headlineSmall" style={styles.round}>
-            {round}
-          </Text>
-
-          {currentPlayer && !isFinished && (
+          {currentPlayer && !isFinished && !isMatchFinished && (
             <>
               <Text variant="titleMedium" style={styles.label}>
                 Vuorossa
@@ -56,150 +181,116 @@ export function GameScreen() {
               <Text variant="headlineMedium" style={styles.currentPlayerName}>
                 {currentPlayer.name}
               </Text>
-              <Text variant="titleLarge" style={styles.currentPlayerScore}>
-                Jäljellä: {currentPlayer.currentScore}
+              <Text variant="displaySmall" style={styles.currentPlayerScore}>
+                {previewScore(currentPlayer.currentScore)}
+              </Text>
+              <Text variant="bodySmall" style={styles.roundMeta}>
+                Kierros {round} • Legi {currentLeg} / {bestOf}
               </Text>
             </>
           )}
 
-          {isFinished && (
+          {isFinished && !isMatchFinished && (
             <>
               <Text variant="titleMedium" style={styles.finished}>
-                Peli päättyi!
+                Legi päättyi!
               </Text>
               {winner && (
                 <Text variant="headlineSmall" style={styles.winnerText}>
                   Voittaja: {winner.name}
                 </Text>
               )}
+              {bestOf > 1 && (
+                <Button
+                  mode="contained"
+                  onPress={handleNextLeg}
+                  style={styles.nextLegButton}
+                >
+                  {pendingMatchWin ? "Päätä ottelu" : "Seuraava legi"}
+                </Button>
+              )}
+            </>
+          )}
+
+          {isMatchFinished && (
+            <>
+              <Text variant="titleMedium" style={styles.finished}>
+                Ottelu päättyi!
+              </Text>
+              {matchWinner && (
+                <Text variant="headlineSmall" style={styles.winnerText}>
+                  Voittaja: {matchWinner.name}
+                </Text>
+              )}
+              <Button
+                mode="outlined"
+                textColor={outlinedTextColor}
+                onPress={handleResetMatch}
+                style={styles.nextLegButton}
+              >
+                Uusi ottelu
+              </Button>
             </>
           )}
         </Surface>
 
-        <Surface style={styles.playersCard} elevation={1}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Pelaajat
-          </Text>
+        {/* Pistekortit: molempien pelaajien tilanne */}
+        <View style={styles.scoreCards}>
+          {gamePlayers.map((player) => {
+            const isCurrent =
+              currentPlayer != null && currentPlayer.id === player.id;
+            const wins = matchWins[player.id] ?? 0;
 
-          <View style={styles.playersList}>
-            {players.map((player, index) => {
-              const isCurrent =
-                currentPlayer != null && currentPlayer.id === player.id;
+            const displayScore = isCurrent
+              ? previewScore(player.currentScore)
+              : player.currentScore;
 
-              return (
-                <Surface key={player.id} style={styles.playerItem} elevation={0}>
-                  <View style={styles.playerRow}>
-                    <View>
-                      <Text variant="titleSmall" style={styles.playerName}>
-                        {player.name}
-                      </Text>
-                      <Text variant="bodyMedium" style={styles.playerMeta}>
-                        Pelaaja {index + 1}
-                      </Text>
-                    </View>
-
-                    <View style={styles.playerScoreBox}>
-                      <Text variant="titleMedium" style={styles.playerScore}>
-                        {player.currentScore}
-                      </Text>
-                      {isCurrent && !isFinished && (
-                        <Text variant="bodySmall" style={styles.currentBadge}>
-                          Vuorossa
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </Surface>
-              );
-            })}
-          </View>
-        </Surface>
-
-        <Surface style={styles.inputCard} elevation={1}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Kirjaa vuoro
-          </Text>
-
-          <View style={styles.inputRow}>
-            <TextInput
-              mode="outlined"
-              label="Vuoron pisteet"
-              value={value}
-              onChangeText={setValue}
-              keyboardType="numeric"
-              style={styles.input}
-              disabled={isFinished}
-            />
-
-            <Button
-              mode="contained"
-              onPress={handleSubmit}
-              disabled={!isValid || isFinished}
-              style={styles.primaryButton}
-            >
-              Tallenna
-            </Button>
-          </View>
-
-          <Text variant="bodySmall" style={styles.helperText}>
-            Syötä yhden vuoron kokonaispisteet (0–180).
-          </Text>
-
-          <View style={styles.actionsRow}>
-            <Button
-              mode="outlined"
-              onPress={undo}
-              style={styles.actionButton}
-              disabled={turns.length === 0}
-            >
-              Peru viimeisin
-            </Button>
-
-            <Button mode="outlined" onPress={reset} style={styles.actionButton}>
-              Resetoi peli
-            </Button>
-          </View>
-        </Surface>
-
-        <View style={styles.turnsHeader}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Vuorohistoria
-          </Text>
-        </View>
-
-        <View style={styles.turnsList}>
-          {turns.length === 0 && (
-            <Text variant="bodyMedium" style={styles.muted}>
-              Ei vielä vuoroja.
-            </Text>
-          )}
-
-          {turns.map((turn, index) => (
-            <Surface
-              key={`${turn.playerId}-${turn.timestamp}-${index}`}
-              style={styles.turnItem}
-              elevation={1}
-            >
-              <Text variant="titleSmall" style={styles.turnPlayer}>
-                {turn.playerName}
-              </Text>
-
-              <Text variant="bodyMedium" style={styles.turnText}>
-                Kierros {turn.round}
-              </Text>
-
-              <Text variant="bodyMedium" style={styles.turnText}>
-                {turn.previousScore} - {turn.points} = {turn.newScore}
-              </Text>
-
-              {turn.isBust && (
-                <Text variant="bodySmall" style={styles.bustText}>
-                  Bust
+            return (
+              <Surface
+                key={player.id}
+                style={[
+                  styles.scoreCard,
+                  isCurrent && styles.scoreCardActive,
+                ]}
+                elevation={1}
+              >
+                <Text
+                  variant="titleSmall"
+                  style={[
+                    styles.scoreName,
+                    isCurrent && styles.scoreNameActive,
+                  ]}
+                >
+                  {player.name} • {wins} 
                 </Text>
-              )}
-            </Surface>
-          ))}
+                <Text
+                  variant="headlineMedium"
+                  style={[
+                    styles.scoreValue,
+                    isCurrent && styles.scoreValueActive,
+                  ]}
+                >
+                  {displayScore}
+                </Text>
+                {isCurrent && !isFinished && !isMatchFinished && (
+                  <Text variant="bodySmall" style={styles.currentBadge}>
+                    Vuorossa
+                  </Text>
+                )}
+              </Surface>
+            );
+          })}
         </View>
+
+        {/* Syöttö: heittojen kirjaus DartsKeyboardilla */}
+        <Surface style={styles.inputCard} elevation={1}>
+          <DartsKeyboard
+            onThrow={handleThrow}
+            onUndo={handleUndo}
+            onReset={handleResetLeg}
+          />
+        </Surface>
+
       </ScrollView>
     </Surface>
   );
@@ -221,11 +312,6 @@ const createStyles = (theme: MD3Theme) =>
       borderRadius: theme.roundness * 2,
       padding: 16,
     },
-    playersCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.roundness * 2,
-      padding: 16,
-    },
     inputCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.roundness * 2,
@@ -235,16 +321,16 @@ const createStyles = (theme: MD3Theme) =>
       color: theme.colors.onSurfaceVariant,
       marginBottom: 6,
     },
-    round: {
-      color: theme.colors.onSurface,
-      marginBottom: 12,
+    roundMeta: {
+      color: theme.colors.onSurfaceVariant,
+      marginTop: 8,
     },
     currentPlayerName: {
       color: theme.colors.onSurface,
       marginBottom: 6,
     },
     currentPlayerScore: {
-      color: theme.colors.primary,
+      color: theme.colors.onSurface,
     },
     finished: {
       color: theme.colors.primary,
@@ -253,88 +339,40 @@ const createStyles = (theme: MD3Theme) =>
     winnerText: {
       color: theme.colors.onSurface,
     },
-    sectionTitle: {
-      color: theme.colors.onSurface,
-      marginBottom: 12,
-    },
-    playersList: {
-      gap: 10,
-    },
-    playerItem: {
-      backgroundColor: theme.colors.surfaceVariant,
-      borderRadius: theme.roundness * 2,
-      padding: 12,
-    },
-    playerRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    playerName: {
-      color: theme.colors.onSurface,
-    },
-    playerMeta: {
-      color: theme.colors.onSurfaceVariant,
-      marginTop: 2,
-    },
-    playerScoreBox: {
-      alignItems: "flex-end",
-    },
-    playerScore: {
-      color: theme.colors.onSurface,
+    nextLegButton: {
+      marginTop: 12,
+      alignSelf: "flex-start",
     },
     currentBadge: {
-      color: theme.colors.primary,
+      color: theme.colors.onPrimaryContainer,
       marginTop: 2,
     },
-    inputRow: {
+    scoreCards: {
       flexDirection: "row",
-      alignItems: "center",
+      flexWrap: "wrap",
       gap: 12,
     },
-    input: {
+    scoreCard: {
       flex: 1,
+      minWidth: 150,
       backgroundColor: theme.colors.surface,
-    },
-    primaryButton: {
-      alignSelf: "stretch",
-      justifyContent: "center",
-    },
-    helperText: {
-      color: theme.colors.onSurfaceVariant,
-      marginTop: 8,
-    },
-    actionsRow: {
-      flexDirection: "row",
-      gap: 12,
-      marginTop: 16,
-    },
-    actionButton: {
-      flex: 1,
-    },
-    turnsHeader: {
-      marginTop: 4,
-    },
-    turnsList: {
-      gap: 8,
-    },
-    turnItem: {
-      padding: 12,
       borderRadius: theme.roundness * 2,
-      backgroundColor: theme.colors.surface,
+      padding: 16,
     },
-    turnPlayer: {
+    scoreCardActive: {
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    scoreName: {
       color: theme.colors.onSurface,
-      marginBottom: 4,
+      marginBottom: 8,
     },
-    turnText: {
+    scoreNameActive: {
+      color: theme.colors.onPrimaryContainer,
+    },
+    scoreValue: {
       color: theme.colors.onSurface,
     },
-    bustText: {
-      marginTop: 6,
-      color: theme.colors.error,
-    },
-    muted: {
-      color: theme.colors.onSurfaceVariant,
+    scoreValueActive: {
+      color: theme.colors.onPrimaryContainer,
     },
   });

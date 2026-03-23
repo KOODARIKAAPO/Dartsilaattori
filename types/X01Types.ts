@@ -1,4 +1,14 @@
-export type X01Variant = 101 | 201 | 301 | 501 | 701 | 1001;
+export type X01Variant =
+  | 101
+  | 201
+  | 301
+  | 401
+  | 501
+  | 601
+  | 701
+  | 801
+  | 901
+  | 1001;
 
 //pelaajan tiedot
 export interface Player {
@@ -24,6 +34,7 @@ export interface ThrowTurn {
 export interface X01GameState {
   startingScore: X01Variant;
   players: Player[];
+  legStartIndex: number;
   currentPlayerIndex: number;
   round: number;
   turns: ThrowTurn[];
