@@ -6,6 +6,7 @@ import HomeScreen from "../features/home/HomeScreen";
 import FriendsScreen from "../features/friends/FriendsScreen";
 import StatsScreen from "../features/stats/StatsScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
+import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
 
 
@@ -38,6 +39,12 @@ export default function Navigation() {
           name="SelectGame" 
           component={SelectGameScreen} 
           options={{ title: "Valitse peli" }}
+        />
+
+        <Stack.Screen 
+          name="X01Setup" 
+          component={X01SetupScreen} 
+          options={{ title: "X01 asetukset" }}
         />
 
         <Stack.Screen 

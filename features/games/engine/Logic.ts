@@ -21,6 +21,7 @@ export function createX01Game({startingScore,players,}: CreateGameParams): X01Ga
       currentScore: startingScore,
       hasWon: false,
     })),
+    legStartIndex: 0,
     currentPlayerIndex: 0,
     round: 1,
     turns: [],
@@ -136,6 +137,46 @@ export function resetGame(state: X01GameState): X01GameState {
       currentScore: state.startingScore,
       hasWon: false,
     })),
+    legStartIndex: state.legStartIndex,
+    currentPlayerIndex: state.legStartIndex,
+    round: 1,
+    turns: [],
+    winnerId: null,
+    isFinished: false,
+  };
+}
+
+export function startNextLeg(state: X01GameState): X01GameState {
+  const nextStartIndex =
+    state.players.length === 0
+      ? 0
+      : (state.legStartIndex + 1) % state.players.length;
+
+  return {
+    startingScore: state.startingScore,
+    players: state.players.map((player) => ({
+      ...player,
+      currentScore: state.startingScore,
+      hasWon: false,
+    })),
+    legStartIndex: nextStartIndex,
+    currentPlayerIndex: nextStartIndex,
+    round: 1,
+    turns: [],
+    winnerId: null,
+    isFinished: false,
+  };
+}
+
+export function resetMatch(state: X01GameState): X01GameState {
+  return {
+    startingScore: state.startingScore,
+    players: state.players.map((player) => ({
+      ...player,
+      currentScore: state.startingScore,
+      hasWon: false,
+    })),
+    legStartIndex: 0,
     currentPlayerIndex: 0,
     round: 1,
     turns: [],

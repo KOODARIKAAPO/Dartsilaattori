@@ -13,10 +13,8 @@ interface UseX01GameParams {
   players: PlayerInput[];
 }
 
-export function useX01Game({
-  startingScore,
-  players,
-}: UseX01GameParams) {
+export function useX01Game({startingScore, players }: UseX01GameParams) 
+{
   const [state, dispatch] = useReducer(
     x01Reducer,
     createX01Game({ startingScore, players })
@@ -30,6 +28,14 @@ export function useX01Game({
 
   const undo = () => {
     dispatch({ type: "UNDO_LAST_TURN" });
+  };
+
+  const startNextLeg = () => {
+    dispatch({ type: "START_NEXT_LEG" });
+  };
+
+  const resetMatch = () => {
+    dispatch({ type: "RESET_MATCH" });
   };
 
   const reset = () => {
@@ -47,6 +53,8 @@ export function useX01Game({
     isFinished: state.isFinished,
     submitPlayerTurn,
     undo,
+    startNextLeg,
+    resetMatch,
     reset,
   };
 }
