@@ -6,15 +6,12 @@ type X01PlayerInput = {
 };
 
 export type RootStackParamList = {
+  Login: undefined;
+  Register: undefined;
   Home: undefined;
   Friends: undefined;
   Stats: undefined;
   SelectGame: undefined;
   X01Setup: undefined;
-  X01: {
-    startingScore: X01Variant;
-    players: X01PlayerInput[];
-    bestOf: 1 | 3 | 5 | 7;
-  };
-  Settings: undefined;
+  X01: undefined;
 };

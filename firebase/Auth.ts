@@ -9,7 +9,7 @@ import {
     signOut,
     onAuthStateChanged,
     User,
-} from '@firebase/auth';
+} from 'firebase/auth';
 import { app } from './Config';
 
 //auth initialisointi
