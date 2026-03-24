@@ -12,7 +12,7 @@ export default function SelectGameScreen() {
       <Button
         mode="contained"
         style={styles.button}
-        onPress={() => navigation.navigate("X01")}
+        onPress={() => navigation.navigate("X01Setup")}
       >
         X01
       </Button>

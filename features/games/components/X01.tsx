@@ -1,107 +1,296 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
-import {Button, Text, TextInput, Surface, useTheme,} from "react-native-paper";
+import {Button, Text, Surface, useTheme} from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 import { useX01Game } from "../hooks/useX01Game";
-import { useScoreInput } from "../hooks/useScoreInput";
-import Numpad from "../components/NumPad";
-import { useNumpad } from "../hooks/useNumpad";
-import DartsKeyboard from "../components/Dartskeyboard";
+import DartsKeyboard from "./Dartskeyboard";
+import type { X01Variant } from "../../../types/X01Types";
 
-export function GameScreen() {
+//Pää pelikomponentti. 
+
+type PlayerInput = {
+  id: string;
+  name: string;
+};
+
+interface GameScreenProps {
+  startingScore: X01Variant;
+  players: PlayerInput[];
+  bestOf?: 1 | 3 | 5 | 7;
+}
+
+export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProps) 
+{
   const theme = useTheme();
   const styles = createStyles(theme);
-  const { currentScore, turns, isFinished, addThrow, undoThrow, reset } =
-    useX01Game(501);
+  const outlinedTextColor = theme.colors.onSurface;
 
-  const { value, setValue, parsedValue, isValid, clear } = useScoreInput();
+  // Tuodaan pelin tile ja logiikka useX01Game hookista
+  const {
+    players: gamePlayers,
+    currentPlayer,
+    round,
+    winnerId,
+    isFinished,
+    submitPlayerTurn,
+    undo,
+    startNextLeg,
+    resetMatch,
+    reset,
+  } = useX01Game({
+    startingScore,
+    players,
+  });
 
-  const handleSubmit = () => {
-    if (parsedValue === null) return;
-    addThrow(parsedValue);
-    clear();
+  // Ottelun (best-of) tila: voitetut legiät per pelaaja
+  const [matchWins, setMatchWins] = useState<Record<string, number>>(() =>
+    players.reduce(
+      (acc, player) => ({ ...acc, [player.id]: 0 }),
+      {} as Record<string, number>
+    )
+  );
+  // Ottelun voittaja (kun best-of täyttyy)
+  const [matchWinnerId, setMatchWinnerId] = useState<string | null>(null);
+  // Keskeneräisen vuoron heitot (1–3 tikkaa)
+  const [pendingDarts, setPendingDarts] = useState<number[]>([]);
+
+  // Ottelun tilalaskelmat
+  const winsNeeded = Math.ceil(bestOf / 2);
+  const legsPlayed = Object.values(matchWins).reduce(
+    (sum, value) => sum + value,
+    0
+  );
+
+  const winner = gamePlayers.find((player) => player.id === winnerId) ?? null;
+  const matchWinner =
+    gamePlayers.find((player) => player.id === matchWinnerId) ?? null;
+  const isMatchFinished = matchWinnerId !== null;
+  const currentLeg = Math.min(
+    legsPlayed + (isMatchFinished ? 0 : 1),
+    bestOf
+  );
+  const pendingMatchWin =
+    winnerId != null
+      ? (matchWins[winnerId] ?? 0) + 1 >= winsNeeded
+      : false;
+  // Vuoron kertymä (vaikuttaa reaaliaikaiseen pistetilanteeseen)
+  const pendingTotal = pendingDarts.reduce((sum, dart) => sum + dart, 0);
+  const showPending =
+    pendingDarts.length > 0 && !isFinished && !isMatchFinished;
+  const previewScore = (currentScore: number) => {
+    if (!showPending) return currentScore;
+    const remaining = currentScore - pendingTotal;
+    return remaining >= 0 ? remaining : currentScore;
   };
 
-  const [keyboardType, setKeyboardType] = useState<"numpad" | "darts">("numpad");
+  useEffect(() => {
+    // Best-of 1: merkitään ottelu valmiiksi heti legin päätyttyä
+    if (bestOf !== 1) return;
+    if (!isFinished || !winnerId) return;
+    if (matchWinnerId) return;
 
+    setMatchWins((prev) => ({
+      ...prev,
+      [winnerId]: (prev[winnerId] ?? 0) + 1,
+    }));
+    setMatchWinnerId(winnerId);
+  }, [bestOf, isFinished, winnerId, matchWinnerId]);
 
-  // Näppämistön napit, handleNumberPress ja handleBackspace
-  const handleNumberPress = (num: number) => {
-  setValue(prev => prev + num.toString());
-};
+  const handleThrow = (value: number, multiplier: 1 | 2 | 3) => {
+    // Lisätään tikka vuoroon; vaihdetaan pelaaja vasta 3 heiton jälkeen
+    if (isFinished || isMatchFinished) return;
+    const points = value * multiplier;
 
-const handleBackspace = () => {
-  setValue(prev => prev.slice(0, -1));
-};
+    setPendingDarts((prev) => {
+      if (prev.length >= 3) return prev;
+      const next = [...prev, points];
+
+      if (next.length === 3) {
+        const total = next.reduce((sum, dart) => sum + dart, 0);
+        // TODO: Tallenna vuoron kokonaispisteet ja tikkojen määrä (statistiikka)
+        // TODO: Laske tuplien osumat ja tuplien yritykset
+        submitPlayerTurn(total);
+        return [];
+      }
+
+      return next;
+    });
+  };
+
+  const handleUndo = () => {
+    // Peru ensisijaisesti viimeisin tikka; jos ei ole, peru koko vuoro
+    if (isMatchFinished) return;
+    setPendingDarts((prev) => {
+      if (prev.length > 0) {
+        return prev.slice(0, -1);
+      }
+      undo();
+      return prev;
+    });
+  };
+
+  const handleResetLeg = () => {
+    // Nollaa legi ja keskeneräiset heitot
+    if (isMatchFinished) return;
+    setPendingDarts([]);
+    reset();
+  };
+
+  const handleNextLeg = () => {
+    // Kirjaa legin voitto ja siirry seuraavaan legiin
+    if (!winnerId) return;
+    // TODO: Tallenna legin/matsin tilastot backendille tässä vaiheessa
+    const nextWins = {
+      ...matchWins,
+      [winnerId]: (matchWins[winnerId] ?? 0) + 1,
+    };
+    setMatchWins(nextWins);
+
+    if (nextWins[winnerId] >= winsNeeded) {
+      setMatchWinnerId(winnerId);
+      return;
+    }
+
+    setPendingDarts([]);
+    startNextLeg();
+  };
+
+  const handleResetMatch = () => {
+    // Nollaa koko ottelu (voitot + legi)
+    // TODO: Varmista, ettei keskeneräinen ottelu ylikirjoita tallennettuja tilastoja
+    const resetWins = players.reduce(
+      (acc, player) => ({ ...acc, [player.id]: 0 }),
+      {} as Record<string, number>
+    );
+    setMatchWins(resetWins);
+    setMatchWinnerId(null);
+    setPendingDarts([]);
+    resetMatch();
+  };
 
   return (
     <Surface style={styles.root} elevation={0}>
-      <View style={styles.header}>
-        <Text variant="titleMedium" style={styles.label}>
-          Jäljellä
-        </Text>
-        <Text variant="headlineLarge" style={styles.score}>
-          {currentScore}
-        </Text>
-        {isFinished && (
-          <Text variant="titleMedium" style={styles.finished}>
-            Peli päättyi!
-          </Text>
-        )}
-      </View>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Yläkortti: vuorossa oleva pelaaja ja ottelun tila */}
+        <Surface style={styles.headerCard} elevation={1}>
+          {currentPlayer && !isFinished && !isMatchFinished && (
+            <>
+              <Text variant="titleMedium" style={styles.label}>
+                Vuorossa
+              </Text>
+              <Text variant="headlineMedium" style={styles.currentPlayerName}>
+                {currentPlayer.name}
+              </Text>
+              <Text variant="displaySmall" style={styles.currentPlayerScore}>
+                {previewScore(currentPlayer.currentScore)}
+              </Text>
+              <Text variant="bodySmall" style={styles.roundMeta}>
+                Kierros {round} • Legi {currentLeg} / {bestOf}
+              </Text>
+            </>
+          )}
 
-      <View style={styles.inputRow}>
-        <TextInput
-          mode="outlined"
-          label="Syötä pisteet"
-          value={value}
-          onChangeText={setValue}
-          editable={false}
-          keyboardType="numeric"
-          style={styles.input}
-        />
-        <Button
-          mode="contained"
-          onPress={handleSubmit}
-          disabled={!isValid}
-          style={styles.primaryButton}
-        >
-          Lisää
-        </Button>
-      </View>
+          {isFinished && !isMatchFinished && (
+            <>
+              <Text variant="titleMedium" style={styles.finished}>
+                Legi päättyi!
+              </Text>
+              {winner && (
+                <Text variant="headlineSmall" style={styles.winnerText}>
+                  Voittaja: {winner.name}
+                </Text>
+              )}
+              {bestOf > 1 && (
+                <Button
+                  mode="contained"
+                  onPress={handleNextLeg}
+                  style={styles.nextLegButton}
+                >
+                  {pendingMatchWin ? "Päätä ottelu" : "Seuraava legi"}
+                </Button>
+              )}
+            </>
+          )}
 
-      <View style={styles.actionsRow}>
-        <Button mode="outlined" onPress={undoThrow} style={styles.actionButton}>
-          Peru viimeisin
-        </Button>
-        <Button
-          mode="outlined"
-          onPress={() => reset()}
-          style={styles.actionButton}
-        >
-          Resetoi peli
-        </Button>
-      </View>
+          {isMatchFinished && (
+            <>
+              <Text variant="titleMedium" style={styles.finished}>
+                Ottelu päättyi!
+              </Text>
+              {matchWinner && (
+                <Text variant="headlineSmall" style={styles.winnerText}>
+                  Voittaja: {matchWinner.name}
+                </Text>
+              )}
+              <Button
+                mode="outlined"
+                textColor={outlinedTextColor}
+                onPress={handleResetMatch}
+                style={styles.nextLegButton}
+              >
+                Uusi ottelu
+              </Button>
+            </>
+          )}
+        </Surface>
 
-      <View style={styles.turnsHeader}>
-        <Text variant="titleSmall" style={styles.label}>
-          Heitot
-        </Text>
-      </View>
+        {/* Pistekortit: molempien pelaajien tilanne */}
+        <View style={styles.scoreCards}>
+          {gamePlayers.map((player) => {
+            const isCurrent =
+              currentPlayer != null && currentPlayer.id === player.id;
+            const wins = matchWins[player.id] ?? 0;
 
-      <ScrollView style={styles.turnsList} contentContainerStyle={styles.turns}>
-        {turns.length === 0 && (
-          <Text variant="bodyMedium" style={styles.muted}>
-            Ei vielä heittoja.
-          </Text>
-        )}
-        {turns.map((turn, index) => (
-          <Surface key={index} style={styles.turnItem} elevation={1}>
-            <Text variant="bodyMedium" style={styles.turnText}>
-              {turn.previousScore} - {turn.points} = {turn.newScore}
-            </Text>
-          </Surface>
-        ))}
+            const displayScore = isCurrent
+              ? previewScore(player.currentScore)
+              : player.currentScore;
+
+            return (
+              <Surface
+                key={player.id}
+                style={[
+                  styles.scoreCard,
+                  isCurrent && styles.scoreCardActive,
+                ]}
+                elevation={1}
+              >
+                <Text
+                  variant="titleSmall"
+                  style={[
+                    styles.scoreName,
+                    isCurrent && styles.scoreNameActive,
+                  ]}
+                >
+                  {player.name} • {wins} 
+                </Text>
+                <Text
+                  variant="headlineMedium"
+                  style={[
+                    styles.scoreValue,
+                    isCurrent && styles.scoreValueActive,
+                  ]}
+                >
+                  {displayScore}
+                </Text>
+                {isCurrent && !isFinished && !isMatchFinished && (
+                  <Text variant="bodySmall" style={styles.currentBadge}>
+                    Vuorossa
+                  </Text>
+                )}
+              </Surface>
+            );
+          })}
+        </View>
+
+        {/* Syöttö: heittojen kirjaus DartsKeyboardilla */}
+        <Surface style={styles.inputCard} elevation={1}>
+          <DartsKeyboard
+            onThrow={handleThrow}
+            onUndo={handleUndo}
+            onReset={handleResetLeg}
+          />
+        </Surface>
+
       </ScrollView>
 
       <View style={{ alignItems: "flex-end", marginBottom: 8 }}>
@@ -138,66 +327,78 @@ const createStyles = (theme: MD3Theme) =>
     root: {
       flex: 1,
       backgroundColor: theme.colors.background,
-      padding: 16,
     },
-    header: {
+    content: {
+      padding: 16,
+      paddingBottom: 24,
+      gap: 16,
+    },
+    headerCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.roundness * 2,
       padding: 16,
-      marginBottom: 16,
+    },
+    inputCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.roundness * 2,
+      padding: 16,
     },
     label: {
       color: theme.colors.onSurfaceVariant,
       marginBottom: 6,
     },
-    score: {
+    roundMeta: {
+      color: theme.colors.onSurfaceVariant,
+      marginTop: 8,
+    },
+    currentPlayerName: {
+      color: theme.colors.onSurface,
+      marginBottom: 6,
+    },
+    currentPlayerScore: {
       color: theme.colors.onSurface,
     },
     finished: {
-      marginTop: 8,
       color: theme.colors.primary,
+      marginBottom: 6,
     },
-    inputRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      marginBottom: 12,
-    },
-    input: {
-      flex: 1,
-      backgroundColor: theme.colors.surface,
-    },
-    primaryButton: {
-      alignSelf: "stretch",
-      justifyContent: "center",
-    },
-    actionsRow: {
-      flexDirection: "row",
-      gap: 12,
-      marginBottom: 16,
-    },
-    actionButton: {
-      flex: 1,
-    },
-    turnsHeader: {
-      marginBottom: 8,
-    },
-    turnsList: {
-      flex: 1,
-    },
-    turns: {
-      paddingBottom: 12,
-      gap: 8,
-    },
-    turnItem: {
-      padding: 12,
-      borderRadius: theme.roundness * 2,
-      backgroundColor: theme.colors.surface,
-    },
-    turnText: {
+    winnerText: {
       color: theme.colors.onSurface,
     },
-    muted: {
-      color: theme.colors.onSurfaceVariant,
+    nextLegButton: {
+      marginTop: 12,
+      alignSelf: "flex-start",
+    },
+    currentBadge: {
+      color: theme.colors.onPrimaryContainer,
+      marginTop: 2,
+    },
+    scoreCards: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+    },
+    scoreCard: {
+      flex: 1,
+      minWidth: 150,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.roundness * 2,
+      padding: 16,
+    },
+    scoreCardActive: {
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    scoreName: {
+      color: theme.colors.onSurface,
+      marginBottom: 8,
+    },
+    scoreNameActive: {
+      color: theme.colors.onPrimaryContainer,
+    },
+    scoreValue: {
+      color: theme.colors.onSurface,
+    },
+    scoreValueActive: {
+      color: theme.colors.onPrimaryContainer,
     },
   });
