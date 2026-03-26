@@ -294,30 +294,8 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
       </ScrollView>
 
       <View style={{ alignItems: "flex-end", marginBottom: 8 }}>
-  <Button
-    mode="outlined"
-    onPress={() =>
-      setKeyboardType(prev => (prev === "numpad" ? "darts" : "numpad"))
-    }
-  >
-    {keyboardType === "numpad" ? "Darts-näppäimistö" : "Numeronäppäimistö"}
-  </Button>
-</View>
 
-      {keyboardType === "numpad" ? (
-    <Numpad
-      onNumberPress={handleNumberPress}
-      onBackspace={handleBackspace}
-    />
-    ) : (
-    <DartsKeyboard
-        onThrow={(value, multiplier) => {
-         addThrow(value * multiplier);
-       }}
-       onUndo={undoThrow}
-       onReset={reset}
-      />
-      )}
+      </View>
       </Surface>
   );
 }
