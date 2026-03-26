@@ -1,6 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApps } from 'firebase/app';
-import {initializeAuth, getAuth, getReactNativePersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User} from '@firebase/auth';
+import {
+    initializeAuth,
+    getAuth,
+    getReactNativePersistence,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    User,
+} from 'firebase/auth';
 import { app } from './Config';
 
 //auth initialisointi
