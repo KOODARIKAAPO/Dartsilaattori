@@ -11,6 +11,8 @@ export type RootStackParamList = {
   Stats: undefined;
   SelectGame: undefined;
   X01Setup: undefined;
+  Cricket: undefined;
+  CricketSetup: undefined;
   X01: {
     startingScore: X01Variant;
     players: X01PlayerInput[];

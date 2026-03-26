@@ -44,6 +44,8 @@ export default function HomeScreen() {
         style={styles.button}
         onPress={() => navigation.navigate("SelectGame")}
       >
+
+        
         Pelaa
       </Button>
 

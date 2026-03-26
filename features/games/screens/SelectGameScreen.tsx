@@ -25,6 +25,14 @@ export default function SelectGameScreen() {
       >
         Checkout Warmup
       </Button>
+      
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("CricketSetup")}
+      >
+        Cricket
+      </Button>
     </View>
   );
 }
