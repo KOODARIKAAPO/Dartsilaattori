@@ -8,6 +8,8 @@ import StatsScreen from "../features/stats/StatsScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
 import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
+import CheckoutWarmupScreen from "../features/games/screens/CheckoutWarmupScreen";
+import SettingsScreen from "../features/settings/SettingsScreen";
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
@@ -51,6 +53,18 @@ export default function Navigation() {
           name="X01" 
           component={X01Screen} 
           options={{ title: "X01" }}
+        />
+
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen} 
+          options={{ title: "Asetukset" }}
+        />
+
+        <Stack.Screen 
+          name="CheckoutWarmup" 
+          component={CheckoutWarmupScreen} 
+          options={{ title: "CheckoutWarmup" }}
         />
 
       </Stack.Navigator>

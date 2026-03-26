@@ -1,11 +1,22 @@
+import React from "react";
 import { Provider as PaperProvider } from "react-native-paper";
 import Navigation from "./app/Navigation";
-import { theme } from "./ui/Theme";
+import { ThemeProvider, useAppTheme } from "./ui/ThemeContext";
 
-export default function App() {
+function AppContent() {
+  const { theme } = useAppTheme();
+
   return (
     <PaperProvider theme={theme}>
       <Navigation />
     </PaperProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
