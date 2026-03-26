@@ -148,8 +148,7 @@ export function resetGame(state: X01GameState): X01GameState {
 
 export function startNextLeg(state: X01GameState): X01GameState {
   const nextStartIndex =
-    state.players.length === 0
-      ? 0
+    state.players.length === 0 ? 0
       : (state.legStartIndex + 1) % state.players.length;
 
   return {
