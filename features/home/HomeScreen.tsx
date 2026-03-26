@@ -57,18 +57,22 @@ export default function HomeScreen() {
       <Button
         mode="contained"
         style={styles.button}
-        onPress={() => navigation.navigate("SelectGame")}
+        onPress={() => navigation.navigate("Settings")}
       >
-        Pelaa
+        Asetukset
       </Button>
 
       <Button
-        mode="outlined"
-        style={styles.logout}
-        onPress={handleLogout}
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("SelectGame")}
       >
-        Kirjaudu ulos
+
+        
+        Pelaa
       </Button>
+
+
     </View>
   );
 }

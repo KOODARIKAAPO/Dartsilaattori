@@ -12,8 +12,10 @@ import StatsScreen from "../features/stats/StatsScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
 import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
-import LoginScreen from "../features/auth/LoginScreen";
-import RegisterScreen from "../features/auth/RegisterScreen";
+import CheckoutWarmupScreen from "../features/games/screens/CheckoutWarmupScreen";
+import Cricket from "../features/games/components/Cricket";
+import CricketSetupScreen from "../features/games/screens/CricketSetupScreen";
+import SettingsScreen from "../features/settings/SettingsScreen";
 
 import { subscribeToAuthChanges } from "../firebase/Auth";
 
@@ -90,6 +92,33 @@ export default function Navigation() {
             />
           </>
         )}
+
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen} 
+          options={{ title: "Asetukset" }}
+        />
+
+        <Stack.Screen 
+          name="CheckoutWarmup" 
+          component={CheckoutWarmupScreen} 
+          options={{ title: "CheckoutWarmup" }}
+        />
+          
+         <Stack.Screen 
+          name="Cricket" 
+          component={Cricket} 
+          options={{ title: "Cricket" }}
+        />
+
+        <Stack.Screen 
+          name="CricketSetup" 
+          component={CricketSetupScreen} 
+          options={{ title: "Cricket asetukset" }}
+        />
+
+       
+
       </Stack.Navigator>
     </NavigationContainer>
   );

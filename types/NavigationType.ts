@@ -15,3 +15,13 @@ export type RootStackParamList = {
   X01Setup: undefined;
   X01: undefined;
 };
+  Cricket: undefined;
+  CricketSetup: undefined;
+  X01: {
+    startingScore: X01Variant;
+    players: X01PlayerInput[];
+    bestOf: 1 | 3 | 5 | 7;
+  };
+  CheckoutWarmup: undefined;
+  Settings: undefined;
+};

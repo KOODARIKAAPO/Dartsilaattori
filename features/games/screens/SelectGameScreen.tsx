@@ -9,12 +9,29 @@ export default function SelectGameScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.screenText}>You are on Select Game screen</Text>
+      
       <Button
         mode="contained"
         style={styles.button}
         onPress={() => navigation.navigate("X01Setup")}
       >
         X01
+      </Button>
+
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("CheckoutWarmup")}
+      >
+        Checkout Warmup
+      </Button>
+      
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("CricketSetup")}
+      >
+        Cricket
       </Button>
     </View>
   );
@@ -28,9 +45,10 @@ const styles = StyleSheet.create({
   },
   screenText: {
     fontSize: 18,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   button: {
     width: 200,
+    marginVertical: 8,
   },
 });
