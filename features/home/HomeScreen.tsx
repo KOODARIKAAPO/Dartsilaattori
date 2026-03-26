@@ -34,10 +34,21 @@ export default function HomeScreen() {
       <Button
         mode="contained"
         style={styles.button}
+        onPress={() => navigation.navigate("Settings")}
+      >
+        Asetukset
+      </Button>
+
+      <Button
+        mode="contained"
+        style={styles.button}
         onPress={() => navigation.navigate("SelectGame")}
       >
+
+        
         Pelaa
       </Button>
+
 
     </View>
   );

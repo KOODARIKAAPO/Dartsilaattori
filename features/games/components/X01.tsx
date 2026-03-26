@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import {Button, Text, Surface, useTheme} from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 import { useX01Game } from "../hooks/useX01Game";
+import { useX01Stats } from "../hooks/useX01Stats";
 import DartsKeyboard from "./Dartskeyboard";
 import type { X01Variant } from "../../../types/X01Types";
 
@@ -27,6 +28,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
 
   // Tuodaan pelin tile ja logiikka useX01Game hookista
   const {
+    state,
     players: gamePlayers,
     currentPlayer,
     round,
@@ -83,6 +85,26 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     return remaining >= 0 ? remaining : currentScore;
   };
 
+  const {
+    showStatsPrompt,
+    dartsOnDouble,
+    setDartsOnDouble,
+    dartsToCheckout,
+    setDartsToCheckout,
+    showBustPrompt,
+    handleBustDartsUsed,
+    handleSaveStats,
+    statsSaving,
+    statsSaved,
+    statsError,
+    resetStatsTracking,
+  } = useX01Stats({
+    state,
+    isFinished,
+    isMatchFinished,
+    winnerId,
+  });
+
   useEffect(() => {
     // Best-of 1: merkitään ottelu valmiiksi heti legin päätyttyä
     if (bestOf !== 1) return;
@@ -104,9 +126,19 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     setPendingDarts((prev) => {
       if (prev.length >= 3) return prev;
       const next = [...prev, points];
+      const total = next.reduce((sum, dart) => sum + dart, 0);
+      const currentScore = currentPlayer?.currentScore ?? 0;
+      const remaining = currentScore - total;
+
+      if (remaining <= 0) {
+        if (remaining === 0 && dartsToCheckout == null) {
+          setDartsToCheckout(next.length);
+        }
+        submitPlayerTurn(total);
+        return [];
+      }
 
       if (next.length === 3) {
-        const total = next.reduce((sum, dart) => sum + dart, 0);
         // TODO: Tallenna vuoron kokonaispisteet ja tikkojen määrä (statistiikka)
         // TODO: Laske tuplien osumat ja tuplien yritykset
         submitPlayerTurn(total);
@@ -133,6 +165,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     // Nollaa legi ja keskeneräiset heitot
     if (isMatchFinished) return;
     setPendingDarts([]);
+    resetStatsTracking();
     reset();
   };
 
@@ -152,6 +185,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     }
 
     setPendingDarts([]);
+    resetStatsTracking();
     startNextLeg();
   };
 
@@ -165,7 +199,104 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     setMatchWins(resetWins);
     setMatchWinnerId(null);
     setPendingDarts([]);
+    resetStatsTracking();
     resetMatch();
+  };
+
+  const renderBustPrompt = () => {
+    if (!showBustPrompt) return null;
+
+    return (
+      <Surface style={styles.bustPrompt} elevation={1}>
+        <Text variant="titleSmall" style={styles.bustPromptTitle}>
+          Bust! Montako tikkaa heitit ennen bustia?
+        </Text>
+        <View style={styles.statsButtons}>
+          {[1, 2, 3].map((value) => (
+            <Button
+              key={`bust-${value}`}
+              mode="outlined"
+              onPress={() => handleBustDartsUsed(value)}
+              compact
+              style={styles.statsButton}
+            >
+              {value}
+            </Button>
+          ))}
+        </View>
+      </Surface>
+    );
+  };
+
+  const renderStatsPrompt = () => {
+    if (!showStatsPrompt || !isFinished || !winnerId) return null;
+
+    return (
+      <Surface style={styles.statsPrompt} elevation={0}>
+        <Text variant="titleSmall" style={styles.statsPromptTitle}>
+          Tilastot (legin viimeinen vuoro)
+        </Text>
+
+        <View style={styles.statsRow}>
+          <Text variant="bodyMedium" style={styles.statsLabel}>
+            Montako tikkaa tuplaan?
+          </Text>
+          <View style={styles.statsButtons}>
+            {[1, 2, 3].map((value) => (
+              <Button
+                key={`double-${value}`}
+                mode={dartsOnDouble === value ? "contained" : "outlined"}
+                onPress={() => setDartsOnDouble(value)}
+                compact
+                style={styles.statsButton}
+              >
+                {value}
+              </Button>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.statsRow}>
+          <Text variant="bodyMedium" style={styles.statsLabel}>
+            Montako tikkaa check-outiin?
+          </Text>
+          <View style={styles.statsButtons}>
+            {[1, 2, 3].map((value) => (
+              <Button
+                key={`checkout-${value}`}
+                mode={dartsToCheckout === value ? "contained" : "outlined"}
+                onPress={() => setDartsToCheckout(value)}
+                compact
+                style={styles.statsButton}
+              >
+                {value}
+              </Button>
+            ))}
+          </View>
+        </View>
+
+        {statsError ? (
+          <Text variant="bodySmall" style={styles.statsError}>
+            {statsError}
+          </Text>
+        ) : null}
+
+        <Button
+          mode="contained"
+          onPress={handleSaveStats}
+          loading={statsSaving}
+          disabled={
+            statsSaving ||
+            statsSaved ||
+            dartsOnDouble == null ||
+            dartsToCheckout == null
+          }
+          style={styles.statsSaveButton}
+        >
+          {statsSaved ? "Tallennettu" : "Tallenna tilastot"}
+        </Button>
+      </Surface>
+    );
   };
 
   return (
@@ -200,6 +331,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
                   Voittaja: {winner.name}
                 </Text>
               )}
+              {renderStatsPrompt()}
               {bestOf > 1 && (
                 <Button
                   mode="contained"
@@ -222,6 +354,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
                   Voittaja: {matchWinner.name}
                 </Text>
               )}
+              {renderStatsPrompt()}
               <Button
                 mode="outlined"
                 textColor={outlinedTextColor}
@@ -291,6 +424,8 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
           />
         </Surface>
 
+        {renderBustPrompt()}
+
       </ScrollView>
     </Surface>
   );
@@ -342,6 +477,45 @@ const createStyles = (theme: MD3Theme) =>
     nextLegButton: {
       marginTop: 12,
       alignSelf: "flex-start",
+    },
+    statsPrompt: {
+      marginTop: 12,
+      padding: 12,
+      borderRadius: theme.roundness * 2,
+      backgroundColor: theme.colors.surfaceVariant,
+      gap: 10,
+    },
+    statsPromptTitle: {
+      color: theme.colors.onSurface,
+    },
+    statsRow: {
+      gap: 8,
+    },
+    statsLabel: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    statsButtons: {
+      flexDirection: "row",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    statsButton: {
+      minWidth: 56,
+    },
+    statsSaveButton: {
+      alignSelf: "flex-start",
+    },
+    statsError: {
+      color: theme.colors.error,
+    },
+    bustPrompt: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.roundness * 2,
+      padding: 12,
+      gap: 10,
+    },
+    bustPromptTitle: {
+      color: theme.colors.onSurface,
     },
     currentBadge: {
       color: theme.colors.onPrimaryContainer,
