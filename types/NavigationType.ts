@@ -18,5 +18,6 @@ export type RootStackParamList = {
     players: X01PlayerInput[];
     bestOf: 1 | 3 | 5 | 7;
   };
+  CheckoutWarmup: undefined;
   Settings: undefined;
 };
