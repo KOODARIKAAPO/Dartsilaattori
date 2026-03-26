@@ -34,6 +34,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     round,
     winnerId,
     isFinished,
+    checkout,
     submitPlayerTurn,
     undo,
     startNextLeg,
@@ -315,6 +316,11 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
               <Text variant="displaySmall" style={styles.currentPlayerScore}>
                 {previewScore(currentPlayer.currentScore)}
               </Text>
+              {checkout && (
+                <Text variant="bodyMedium" style={styles.checkoutText}>
+                  Ehdotus: {checkout.join(", ")}
+                </Text>
+              )}
               <Text variant="bodySmall" style={styles.roundMeta}>
                 Kierros {round} • Legi {currentLeg} / {bestOf}
               </Text>
@@ -470,6 +476,10 @@ const createStyles = (theme: MD3Theme) =>
     },
     currentPlayerScore: {
       color: theme.colors.onSurface,
+    },
+    checkoutText: {
+      color: theme.colors.onSurface,
+      marginTop: 4,
     },
     finished: {
       color: theme.colors.primary,
