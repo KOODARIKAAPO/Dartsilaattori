@@ -32,6 +32,7 @@ export interface ThrowTurn {
 
 //pelin tila/tieto
 export interface X01GameState {
+  playerStates: unknown;
   startingScore: X01Variant;
   players: Player[];
   legStartIndex: number;

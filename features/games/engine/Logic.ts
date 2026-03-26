@@ -15,6 +15,7 @@ export function createX01Game({startingScore,players,}: CreateGameParams): X01Ga
 {
   return {
     startingScore,
+    playerStates: {},
     players: players.map((player) => ({
       id: player.id,
       name: player.name,
@@ -76,6 +77,7 @@ export function applyThrow( state: X01GameState, points: number): X01GameState
   if (hasWon) {
     return {
       ...state,
+      playerStates: state.playerStates,
       players: updatedPlayers,
       turns: [...state.turns, turn],
       winnerId: currentPlayer.id,
@@ -91,6 +93,7 @@ export function applyThrow( state: X01GameState, points: number): X01GameState
 
   return {
     ...state,
+    playerStates: state.playerStates,
     players: updatedPlayers,
     currentPlayerIndex: nextPlayerIndex,
     round: nextRound,
@@ -120,6 +123,7 @@ export function undoLastThrow(state: X01GameState): X01GameState {
 
   return {
     ...state,
+    playerStates: state.playerStates,
     players: restoredPlayers,
     currentPlayerIndex: restoredPlayerIndex >= 0 ? restoredPlayerIndex : 0,
     round: lastTurn.round,
@@ -132,6 +136,7 @@ export function undoLastThrow(state: X01GameState): X01GameState {
 export function resetGame(state: X01GameState): X01GameState {
   return {
     startingScore: state.startingScore,
+    playerStates: state.playerStates,
     players: state.players.map((player) => ({
       ...player,
       currentScore: state.startingScore,
@@ -154,6 +159,7 @@ export function startNextLeg(state: X01GameState): X01GameState {
 
   return {
     startingScore: state.startingScore,
+    playerStates: state.playerStates,
     players: state.players.map((player) => ({
       ...player,
       currentScore: state.startingScore,
@@ -171,6 +177,7 @@ export function startNextLeg(state: X01GameState): X01GameState {
 export function resetMatch(state: X01GameState): X01GameState {
   return {
     startingScore: state.startingScore,
+    playerStates: state.playerStates,
     players: state.players.map((player) => ({
       ...player,
       currentScore: state.startingScore,
