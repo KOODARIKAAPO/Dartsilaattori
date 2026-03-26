@@ -16,6 +16,14 @@ export default function SelectGameScreen() {
       >
         X01
       </Button>
+
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("CricketSetup")}
+      >
+        Cricket
+      </Button>
     </View>
   );
 }

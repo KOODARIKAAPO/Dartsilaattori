@@ -427,7 +427,11 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
         {renderBustPrompt()}
 
       </ScrollView>
-    </Surface>
+
+      <View style={{ alignItems: "flex-end", marginBottom: 8 }}>
+
+      </View>
+      </Surface>
   );
 }
 
