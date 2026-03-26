@@ -10,12 +10,7 @@ type UseX01StatsParams = {
   winnerId: string | null;
 };
 
-export function useX01Stats({
-  state,
-  isFinished,
-  isMatchFinished,
-  winnerId,
-}: UseX01StatsParams) {
+export function useX01Stats({state, isFinished, isMatchFinished, winnerId, }: UseX01StatsParams) {
   const [showStatsPrompt, setShowStatsPrompt] = useState(false);
   const [dartsOnDouble, setDartsOnDouble] = useState<number | null>(null);
   const [dartsToCheckout, setDartsToCheckout] = useState<number | null>(null);
