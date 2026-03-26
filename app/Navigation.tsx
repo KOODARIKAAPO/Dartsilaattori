@@ -81,11 +81,7 @@ export default function Navigation() {
           options={{ title: "Cricket asetukset" }}
         />
 
-        <Stack.Screen 
-          name="Settings" 
-          component={SettingsScreen} 
-          options={{ title: "Asetukset" }}
-        />
+       
 
       </Stack.Navigator>
     </NavigationContainer>
