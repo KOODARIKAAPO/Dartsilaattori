@@ -50,20 +50,20 @@ export default function Navigation() {
       <Stack.Navigator>
         {user ? (
           <>
-            <Stack.Screen 
-  name="Home" 
-  component={HomeScreen} 
-  options={({ navigation }) => ({
-    title: "Koti",
-    headerRight: () => (
-      <IconButton
-        icon="cog"
-        size={24}
-        onPress={() => navigation.navigate("Settings")}
-      />
-    ),
-  })}
-/>
+            <Stack.Screen
+              name="Home"
+              component={HomeScreen}
+              options={({ navigation }) => ({
+                title: "Koti",
+                headerRight: () => (
+                  <IconButton
+                    icon="cog"
+                    size={24}
+                    onPress={() => navigation.navigate("Settings")}
+                  />
+                ),
+              })}
+            />
             <Stack.Screen
               name="Friends"
               component={FriendsScreen}
