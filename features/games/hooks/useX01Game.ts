@@ -1,3 +1,5 @@
+//X01 pelilogiikka, käyttää x01reduceria tilanhallintaan ja käyttää tarjoaa funktiot.
+
 import { useReducer } from "react";
 import { createX01Game, getCurrentPlayer } from "../engine/Logic";
 import { createInitialState, x01Reducer } from "./x01reducer";
@@ -24,6 +26,7 @@ export function useX01Game({startingScore, players }: UseX01GameParams)
     createX01Game({ startingScore, players })
   );
 
+  // Nykyinen pelaaja on aina reducerin tilasta; UI ei päätä vuoroja itse.
   const currentPlayer = getCurrentPlayer(state);
 
   const submitPlayerTurn = (points: number) => {
@@ -46,6 +49,7 @@ export function useX01Game({startingScore, players }: UseX01GameParams)
     dispatch({ type: "RESET" });
   };
 
+  // Check-out ehdotukset näytetään vain jos pisteet ovat realistisessa checkout-alueessa.
   const checkout = useMemo(() => {
     const score = state.players[state.currentPlayerIndex]?.currentScore;
 

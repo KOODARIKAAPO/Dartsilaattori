@@ -16,10 +16,10 @@ import CheckoutWarmupScreen from "../features/games/screens/CheckoutWarmupScreen
 import Cricket from "../features/games/components/Cricket";
 import CricketSetupScreen from "../features/games/screens/CricketSetupScreen";
 import SettingsScreen from "../features/settings/SettingsScreen";
-import LoginScreen from "../features/auth/LoginScreen";
-import RegisterScreen from "../features/auth/RegisterScreen";
 
 import { subscribeToAuthChanges } from "../firebase/Auth";
+import LoginScreen from "../features/auth/LoginScreen";
+import RegisterScreen from "../features/auth/RegisterScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -95,29 +95,32 @@ export default function Navigation() {
           </>
         )}
 
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
+        <Stack.Screen 
+          name="Settings" 
+          component={SettingsScreen} 
           options={{ title: "Asetukset" }}
         />
 
-        <Stack.Screen
-          name="CheckoutWarmup"
-          component={CheckoutWarmupScreen}
+        <Stack.Screen 
+          name="CheckoutWarmup" 
+          component={CheckoutWarmupScreen} 
           options={{ title: "CheckoutWarmup" }}
         />
-
-        <Stack.Screen
-          name="Cricket"
-          component={Cricket}
+          
+         <Stack.Screen 
+          name="Cricket" 
+          component={Cricket} 
           options={{ title: "Cricket" }}
         />
 
-        <Stack.Screen
-          name="CricketSetup"
-          component={CricketSetupScreen}
+        <Stack.Screen 
+          name="CricketSetup" 
+          component={CricketSetupScreen} 
           options={{ title: "Cricket asetukset" }}
         />
+
+       
+
       </Stack.Navigator>
     </NavigationContainer>
   );

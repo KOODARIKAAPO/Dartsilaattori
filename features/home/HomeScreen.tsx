@@ -35,8 +35,12 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <Title style={styles.title}>Dartsilaattori 🎯</Title>
 
-      {/* käyttäjän email */}
-      {user && <Text style={styles.email}>{user.email}</Text>}
+      {/* käyttäjän nimi */}
+      {user && (
+        <Text style={styles.email}>
+          {user.displayName ?? user.email}
+        </Text>
+      )}
 
       <Button
         mode="contained"

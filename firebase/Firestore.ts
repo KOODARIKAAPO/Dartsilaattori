@@ -87,6 +87,22 @@ export const createUserProfileIfMissing = async (
   }
 };
 
+// käyttäjäprofiilin nimen päivitys
+export const updateUserProfileDisplayName = async (
+  uid: string,
+  displayName: string
+) => {
+  const ref = doc(db, 'users', uid);
+  await setDoc(
+    ref,
+    {
+      displayName,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+};
+
 // käyttäjäprofiilin haku
 export const getUserProfile = async (uid: string) => {
   const ref = doc(db, 'users', uid);
