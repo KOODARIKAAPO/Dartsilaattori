@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import {Button, Text, Surface, useTheme} from "react-native-paper";
+import { StyleSheet, ScrollView } from "react-native";
+import { Surface, useTheme } from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 import { useX01Game } from "../hooks/useX01Game";
 import { useX01Stats } from "../hooks/useX01Stats";
+import { useX01MatchAverages } from "../hooks/useX01MatchAverages";
 import DartsKeyboard from "./Dartskeyboard";
+import X01BustPrompt from "./X01BustPrompt";
+import X01HeaderCard from "./X01HeaderCard";
+import X01ScoreCards from "./X01ScoreCards";
 import type { X01Variant } from "../../../types/X01Types";
 
 //Pää pelikomponentti. 
@@ -86,6 +90,13 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     return remaining >= 0 ? remaining : currentScore;
   };
 
+  const { getPlayerAverage, resetMatchAverages } = useX01MatchAverages({
+    turns: state.turns,
+    isFinished,
+  });
+
+  const mainPlayerId = players[0]?.id ?? null;
+
   const {
     showStatsPrompt,
     dartsOnDouble,
@@ -104,6 +115,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     isFinished,
     isMatchFinished,
     winnerId,
+    mainPlayerId,
   });
 
   useEffect(() => {
@@ -200,226 +212,53 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     setMatchWins(resetWins);
     setMatchWinnerId(null);
     setPendingDarts([]);
+    resetMatchAverages();
     resetStatsTracking();
     resetMatch();
-  };
-
-  const renderBustPrompt = () => {
-    if (!showBustPrompt) return null;
-
-    return (
-      <Surface style={styles.bustPrompt} elevation={1}>
-        <Text variant="titleSmall" style={styles.bustPromptTitle}>
-          Bust! Montako tikkaa heitit ennen bustia?
-        </Text>
-        <View style={styles.statsButtons}>
-          {[1, 2, 3].map((value) => (
-            <Button
-              key={`bust-${value}`}
-              mode="outlined"
-              onPress={() => handleBustDartsUsed(value)}
-              compact
-              style={styles.statsButton}
-            >
-              {value}
-            </Button>
-          ))}
-        </View>
-      </Surface>
-    );
-  };
-
-  const renderStatsPrompt = () => {
-    if (!showStatsPrompt || !isFinished || !winnerId) return null;
-
-    return (
-      <Surface style={styles.statsPrompt} elevation={0}>
-        <Text variant="titleSmall" style={styles.statsPromptTitle}>
-          Tilastot (legin viimeinen vuoro)
-        </Text>
-
-        <View style={styles.statsRow}>
-          <Text variant="bodyMedium" style={styles.statsLabel}>
-            Montako tikkaa tuplaan?
-          </Text>
-          <View style={styles.statsButtons}>
-            {[1, 2, 3].map((value) => (
-              <Button
-                key={`double-${value}`}
-                mode={dartsOnDouble === value ? "contained" : "outlined"}
-                onPress={() => setDartsOnDouble(value)}
-                compact
-                style={styles.statsButton}
-              >
-                {value}
-              </Button>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.statsRow}>
-          <Text variant="bodyMedium" style={styles.statsLabel}>
-            Montako tikkaa check-outiin?
-          </Text>
-          <View style={styles.statsButtons}>
-            {[1, 2, 3].map((value) => (
-              <Button
-                key={`checkout-${value}`}
-                mode={dartsToCheckout === value ? "contained" : "outlined"}
-                onPress={() => setDartsToCheckout(value)}
-                compact
-                style={styles.statsButton}
-              >
-                {value}
-              </Button>
-            ))}
-          </View>
-        </View>
-
-        {statsError ? (
-          <Text variant="bodySmall" style={styles.statsError}>
-            {statsError}
-          </Text>
-        ) : null}
-
-        <Button
-          mode="contained"
-          onPress={handleSaveStats}
-          loading={statsSaving}
-          disabled={
-            statsSaving ||
-            statsSaved ||
-            dartsOnDouble == null ||
-            dartsToCheckout == null
-          }
-          style={styles.statsSaveButton}
-        >
-          {statsSaved ? "Tallennettu" : "Tallenna tilastot"}
-        </Button>
-      </Surface>
-    );
   };
 
   return (
     <Surface style={styles.root} elevation={0}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Yläkortti: vuorossa oleva pelaaja ja ottelun tila */}
-        <Surface style={styles.headerCard} elevation={1}>
-          {currentPlayer && !isFinished && !isMatchFinished && (
-            <>
-              <Text variant="titleMedium" style={styles.label}>
-                Vuorossa
-              </Text>
-              <Text variant="headlineMedium" style={styles.currentPlayerName}>
-                {currentPlayer.name}
-              </Text>
-              <Text variant="displaySmall" style={styles.currentPlayerScore}>
-                {previewScore(currentPlayer.currentScore)}
-              </Text>
-              {checkout && (
-                <Text variant="bodyMedium" style={styles.checkoutText}>
-                  Ehdotus: {checkout.join(", ")}
-                </Text>
-              )}
-              <Text variant="bodySmall" style={styles.roundMeta}>
-                Kierros {round} • Legi {currentLeg} / {bestOf}
-              </Text>
-            </>
-          )}
+        <X01HeaderCard
+          showCurrentPlayer={Boolean(currentPlayer && !isFinished && !isMatchFinished)}
+          currentPlayerName={currentPlayer?.name}
+          currentPlayerScore={currentPlayer?.currentScore}
+          previewScore={previewScore}
+          checkout={checkout}
+          round={round}
+          currentLeg={currentLeg}
+          bestOf={bestOf}
+          isFinished={isFinished}
+          isMatchFinished={isMatchFinished}
+          winnerName={winner?.name}
+          matchWinnerName={matchWinner?.name}
+          pendingMatchWin={pendingMatchWin}
+          outlinedTextColor={outlinedTextColor}
+          onNextLeg={handleNextLeg}
+          onResetMatch={handleResetMatch}
+          statsPrompt={{
+            visible: showStatsPrompt && isFinished && Boolean(winnerId),
+            dartsOnDouble,
+            dartsToCheckout,
+            onSelectDartsOnDouble: setDartsOnDouble,
+            onSelectDartsToCheckout: setDartsToCheckout,
+            onSave: handleSaveStats,
+            saving: statsSaving,
+            saved: statsSaved,
+            error: statsError,
+          }}
+        />
 
-          {isFinished && !isMatchFinished && (
-            <>
-              <Text variant="titleMedium" style={styles.finished}>
-                Legi päättyi!
-              </Text>
-              {winner && (
-                <Text variant="headlineSmall" style={styles.winnerText}>
-                  Voittaja: {winner.name}
-                </Text>
-              )}
-              {renderStatsPrompt()}
-              {bestOf > 1 && (
-                <Button
-                  mode="contained"
-                  onPress={handleNextLeg}
-                  style={styles.nextLegButton}
-                >
-                  {pendingMatchWin ? "Päätä ottelu" : "Seuraava legi"}
-                </Button>
-              )}
-            </>
-          )}
-
-          {isMatchFinished && (
-            <>
-              <Text variant="titleMedium" style={styles.finished}>
-                Ottelu päättyi!
-              </Text>
-              {matchWinner && (
-                <Text variant="headlineSmall" style={styles.winnerText}>
-                  Voittaja: {matchWinner.name}
-                </Text>
-              )}
-              {renderStatsPrompt()}
-              <Button
-                mode="outlined"
-                textColor={outlinedTextColor}
-                onPress={handleResetMatch}
-                style={styles.nextLegButton}
-              >
-                Uusi ottelu
-              </Button>
-            </>
-          )}
-        </Surface>
-
-        {/* Pistekortit: molempien pelaajien tilanne */}
-        <View style={styles.scoreCards}>
-          {gamePlayers.map((player) => {
-            const isCurrent =
-              currentPlayer != null && currentPlayer.id === player.id;
-            const wins = matchWins[player.id] ?? 0;
-
-            const displayScore = isCurrent
-              ? previewScore(player.currentScore)
-              : player.currentScore;
-
-            return (
-              <Surface
-                key={player.id}
-                style={[
-                  styles.scoreCard,
-                  isCurrent && styles.scoreCardActive,
-                ]}
-                elevation={1}
-              >
-                <Text
-                  variant="titleSmall"
-                  style={[
-                    styles.scoreName,
-                    isCurrent && styles.scoreNameActive,
-                  ]}
-                >
-                  {player.name} • {wins} 
-                </Text>
-                <Text
-                  variant="headlineMedium"
-                  style={[
-                    styles.scoreValue,
-                    isCurrent && styles.scoreValueActive,
-                  ]}
-                >
-                  {displayScore}
-                </Text>
-                {isCurrent && !isFinished && !isMatchFinished && (
-                  <Text variant="bodySmall" style={styles.currentBadge}>
-                    Vuorossa
-                  </Text>
-                )}
-              </Surface>
-            );
-          })}
-        </View>
+        <X01ScoreCards
+          players={gamePlayers}
+          currentPlayerId={currentPlayer?.id ?? null}
+          matchWins={matchWins}
+          previewScore={previewScore}
+          getPlayerAverage={getPlayerAverage}
+          isFinished={isFinished}
+          isMatchFinished={isMatchFinished}
+        />
 
         {/* Syöttö: heittojen kirjaus DartsKeyboardilla */}
         <Surface style={styles.inputCard} elevation={1}>
@@ -430,14 +269,13 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
           />
         </Surface>
 
-        {renderBustPrompt()}
+        <X01BustPrompt
+          visible={showBustPrompt}
+          onSelect={handleBustDartsUsed}
+        />
 
       </ScrollView>
-
-      <View style={{ alignItems: "flex-end", marginBottom: 8 }}>
-
-      </View>
-      </Surface>
+    </Surface>
   );
 }
 
@@ -452,115 +290,9 @@ const createStyles = (theme: MD3Theme) =>
       paddingBottom: 24,
       gap: 16,
     },
-    headerCard: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.roundness * 2,
-      padding: 16,
-    },
     inputCard: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.roundness * 2,
       padding: 16,
-    },
-    label: {
-      color: theme.colors.onSurfaceVariant,
-      marginBottom: 6,
-    },
-    roundMeta: {
-      color: theme.colors.onSurfaceVariant,
-      marginTop: 8,
-    },
-    currentPlayerName: {
-      color: theme.colors.onSurface,
-      marginBottom: 6,
-    },
-    currentPlayerScore: {
-      color: theme.colors.onSurface,
-    },
-    checkoutText: {
-      color: theme.colors.onSurface,
-      marginTop: 4,
-    },
-    finished: {
-      color: theme.colors.primary,
-      marginBottom: 6,
-    },
-    winnerText: {
-      color: theme.colors.onSurface,
-    },
-    nextLegButton: {
-      marginTop: 12,
-      alignSelf: "flex-start",
-    },
-    statsPrompt: {
-      marginTop: 12,
-      padding: 12,
-      borderRadius: theme.roundness * 2,
-      backgroundColor: theme.colors.surfaceVariant,
-      gap: 10,
-    },
-    statsPromptTitle: {
-      color: theme.colors.onSurface,
-    },
-    statsRow: {
-      gap: 8,
-    },
-    statsLabel: {
-      color: theme.colors.onSurfaceVariant,
-    },
-    statsButtons: {
-      flexDirection: "row",
-      gap: 8,
-      flexWrap: "wrap",
-    },
-    statsButton: {
-      minWidth: 56,
-    },
-    statsSaveButton: {
-      alignSelf: "flex-start",
-    },
-    statsError: {
-      color: theme.colors.error,
-    },
-    bustPrompt: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.roundness * 2,
-      padding: 12,
-      gap: 10,
-    },
-    bustPromptTitle: {
-      color: theme.colors.onSurface,
-    },
-    currentBadge: {
-      color: theme.colors.onPrimaryContainer,
-      marginTop: 2,
-    },
-    scoreCards: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 12,
-    },
-    scoreCard: {
-      flex: 1,
-      minWidth: 150,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.roundness * 2,
-      padding: 16,
-    },
-    scoreCardActive: {
-      backgroundColor: theme.colors.primaryContainer,
-    },
-    scoreName: {
-      color: theme.colors.onSurface,
-      marginBottom: 8,
-    },
-    scoreNameActive: {
-      color: theme.colors.onPrimaryContainer,
-    },
-    scoreValue: {
-      color: theme.colors.onSurface,
-    },
-    scoreValueActive: {
-      color: theme.colors.onPrimaryContainer,
     },
   });
