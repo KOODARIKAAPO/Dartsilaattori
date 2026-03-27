@@ -9,10 +9,8 @@ import { useEffect, useState } from "react";
 import { User } from "firebase/auth";
 import { subscribeToAuthChanges } from "../../firebase/Auth";
 
-type NavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Home"
->;
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList,"Home">
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();

@@ -16,6 +16,7 @@ import CheckoutWarmupScreen from "../features/games/screens/CheckoutWarmupScreen
 import Cricket from "../features/games/components/Cricket";
 import CricketSetupScreen from "../features/games/screens/CricketSetupScreen";
 import SettingsScreen from "../features/settings/SettingsScreen";
+import { IconButton } from "react-native-paper";
 
 import { subscribeToAuthChanges } from "../firebase/Auth";
 import LoginScreen from "../features/auth/LoginScreen";
@@ -49,11 +50,20 @@ export default function Navigation() {
       <Stack.Navigator>
         {user ? (
           <>
-            <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-              options={{ title: "Koti" }}
-            />
+            <Stack.Screen 
+  name="Home" 
+  component={HomeScreen} 
+  options={({ navigation }) => ({
+    title: "Koti",
+    headerRight: () => (
+      <IconButton
+        icon="cog"
+        size={24}
+        onPress={() => navigation.navigate("Settings")}
+      />
+    ),
+  })}
+/>
             <Stack.Screen
               name="Friends"
               component={FriendsScreen}
@@ -95,31 +105,31 @@ export default function Navigation() {
           </>
         )}
 
-        <Stack.Screen 
-          name="Settings" 
-          component={SettingsScreen} 
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
           options={{ title: "Asetukset" }}
         />
 
-        <Stack.Screen 
-          name="CheckoutWarmup" 
-          component={CheckoutWarmupScreen} 
+        <Stack.Screen
+          name="CheckoutWarmup"
+          component={CheckoutWarmupScreen}
           options={{ title: "CheckoutWarmup" }}
         />
-          
-         <Stack.Screen 
-          name="Cricket" 
-          component={Cricket} 
+
+        <Stack.Screen
+          name="Cricket"
+          component={Cricket}
           options={{ title: "Cricket" }}
         />
 
-        <Stack.Screen 
-          name="CricketSetup" 
-          component={CricketSetupScreen} 
+        <Stack.Screen
+          name="CricketSetup"
+          component={CricketSetupScreen}
           options={{ title: "Cricket asetukset" }}
         />
 
-       
+
 
       </Stack.Navigator>
     </NavigationContainer>
