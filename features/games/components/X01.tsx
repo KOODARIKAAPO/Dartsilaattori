@@ -266,6 +266,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
             onThrow={handleThrow}
             onUndo={handleUndo}
             onReset={handleResetLeg}
+            inputPreview={pendingDarts}
           />
         </Surface>
 
