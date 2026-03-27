@@ -1,3 +1,4 @@
+//tilanhallinta componentti
 import {
   applyThrow,
   createX01Game,

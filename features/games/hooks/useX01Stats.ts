@@ -8,6 +8,7 @@ type UseX01StatsParams = {
   isFinished: boolean;
   isMatchFinished: boolean;
   winnerId: string | null;
+  mainPlayerId: string | null;
 };
 
 export function useX01Stats({
@@ -15,6 +16,7 @@ export function useX01Stats({
   isFinished,
   isMatchFinished,
   winnerId,
+  mainPlayerId,
 }: UseX01StatsParams) {
   const [showStatsPrompt, setShowStatsPrompt] = useState(false);
   const [dartsOnDouble, setDartsOnDouble] = useState<number | null>(null);
@@ -29,6 +31,13 @@ export function useX01Stats({
   const [statsSaved, setStatsSaved] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
 
+  // Tilastot kirjataan vain "pääpelaajalle" (ensimmäinen pelaaja).
+  const isMainWinner =
+    Boolean(mainPlayerId) &&
+    Boolean(winnerId) &&
+    winnerId === mainPlayerId;
+
+  // Siivotaan bustien seurantaa jos heittolistasta poistuu rivejä (undo/reset).
   useEffect(() => {
     if (state.turns.length === 0) {
       setBustDartsUsed({});
@@ -51,6 +60,7 @@ export function useX01Stats({
     });
   }, [state.turns]);
 
+  // Etsitään uusin bust, josta puuttuu "montako tikkaa" -syöte.
   useEffect(() => {
     if (isFinished || isMatchFinished) {
       setPendingBustTurn(null);
@@ -61,20 +71,27 @@ export function useX01Stats({
       .reverse()
       .find(
         (turn) =>
-          turn.isBust && bustDartsUsed[`${turn.timestamp}`] == null
+          turn.isBust &&
+          turn.playerId === mainPlayerId &&
+          bustDartsUsed[`${turn.timestamp}`] == null
       );
     setPendingBustTurn(missingBust ?? null);
-  }, [bustDartsUsed, isFinished, isMatchFinished, state.turns]);
+  }, [bustDartsUsed, isFinished, isMatchFinished, mainPlayerId, state.turns]);
 
+  // Näytetään tilastoprompti vain jos pääpelaaja voitti legin.
   useEffect(() => {
     if (!isFinished) {
       setShowStatsPrompt(false);
       return;
     }
-    if (statsSaved) return;
+    if (!isMainWinner || statsSaved) {
+      setShowStatsPrompt(false);
+      return;
+    }
     setShowStatsPrompt(true);
-  }, [isFinished, statsSaved]);
+  }, [isFinished, isMainWinner, statsSaved]);
 
+  // Nollataan prompttien ja tilastojen tilat uuden legin/matsin alussa.
   const resetStatsTracking = () => {
     setShowStatsPrompt(false);
     setDartsOnDouble(null);
@@ -86,18 +103,28 @@ export function useX01Stats({
     setStatsError(null);
   };
 
+  // Lasketaan pääpelaajan pisteet ja tikat; checkout vain jos hän voitti.
   const statsSummary = useMemo(() => {
-    if (!isFinished || !winnerId) return null;
-    if (state.turns.length === 0) return null;
+    if (!mainPlayerId) return null;
+    const mainTurns = state.turns.filter(
+      (turn) => turn.playerId === mainPlayerId
+    );
+    if (mainTurns.length === 0) return null;
 
-    const lastIndex = state.turns.length - 1;
-    const totalPoints = state.turns.reduce(
+    const lastOverallTurn =
+      state.turns.length > 0 ? state.turns[state.turns.length - 1] : null;
+    const isWinningTurn =
+      isMainWinner &&
+      lastOverallTurn != null &&
+      lastOverallTurn.playerId === mainPlayerId;
+
+    const totalPoints = mainTurns.reduce(
       (sum, turn) => sum + (turn.isBust ? 0 : turn.points),
       0
     );
     const checkoutDarts = dartsToCheckout ?? 3;
-    const totalDartsThrown = state.turns.reduce((sum, turn, index) => {
-      if (index === lastIndex) {
+    const totalDartsThrown = mainTurns.reduce((sum, turn) => {
+      if (isWinningTurn && lastOverallTurn?.timestamp === turn.timestamp) {
         return sum + checkoutDarts;
       }
       if (turn.isBust) {
@@ -106,15 +133,23 @@ export function useX01Stats({
       }
       return sum + 3;
     }, 0);
-    const lastTurn = state.turns[state.turns.length - 1];
-    const checkout = lastTurn && !lastTurn.isBust ? lastTurn.points : null;
+    const checkout =
+      isWinningTurn && lastOverallTurn && !lastOverallTurn.isBust
+        ? lastOverallTurn.points
+        : null;
 
     return {
       totalPoints,
       totalDartsThrown,
       checkout,
     };
-  }, [bustDartsUsed, dartsToCheckout, isFinished, state.turns, winnerId]);
+  }, [
+    bustDartsUsed,
+    dartsToCheckout,
+    isMainWinner,
+    mainPlayerId,
+    state.turns,
+  ]);
 
   const handleBustDartsUsed = (value: number) => {
     if (!pendingBustTurn) return;
@@ -123,8 +158,10 @@ export function useX01Stats({
     setPendingBustTurn(null);
   };
 
+  // Tallennetaan yksi peli Firestoreen; aggregaattitilastot päivittyvät palvelimella.
   const handleSaveStats = async () => {
     if (!statsSummary) return;
+    if (!isMainWinner) return;
     if (dartsOnDouble == null || dartsToCheckout == null) return;
     if (statsSaving || statsSaved) return;
 
@@ -154,13 +191,53 @@ export function useX01Stats({
     }
   };
 
+  // Jos pääpelaaja häviää, kirjataan hänen pisteet/tikat automaattisesti ilman prompttia.
+  useEffect(() => {
+    if (!isFinished) return;
+    if (!mainPlayerId) return;
+    if (statsSaved || statsSaving) return;
+    if (!winnerId || winnerId === mainPlayerId) return;
+    if (!statsSummary) return;
+
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    const saveLoss = async () => {
+      try {
+        setStatsSaving(true);
+        await addGameForUser(uid, {
+          points: statsSummary.totalPoints,
+          dartsThrown: statsSummary.totalDartsThrown,
+          doublesAttempted: 0,
+          doublesHit: 0,
+          checkout: null,
+        });
+        setStatsSaved(true);
+      } catch (error) {
+        setStatsError("Tilastojen tallennus epäonnistui.");
+      } finally {
+        setStatsSaving(false);
+      }
+    };
+
+    void saveLoss();
+  }, [
+    isFinished,
+    mainPlayerId,
+    statsSaved,
+    statsSaving,
+    statsSummary,
+    winnerId,
+  ]);
+
   return {
     showStatsPrompt,
     dartsOnDouble,
     setDartsOnDouble,
     dartsToCheckout,
     setDartsToCheckout,
-    showBustPrompt: Boolean(pendingBustTurn) && !isFinished && !isMatchFinished,
+    showBustPrompt:
+      Boolean(pendingBustTurn) && !isFinished && !isMatchFinished,
     handleBustDartsUsed,
     handleSaveStats,
     statsSaving,
