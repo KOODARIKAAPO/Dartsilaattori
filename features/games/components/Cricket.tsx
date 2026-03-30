@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import Dartskeyboard from "./Dartskeyboard";
-import { useRoute } from "@react-navigation/native";
+import { useRoute, useNavigation } from "@react-navigation/native";
 
 type Multiplier = 1 | 2 | 3;
 type CricketNumber = 15 | 16 | 17 | 18 | 19 | 20 | 25;
@@ -36,6 +36,7 @@ function createPlayer(name: string): Player {
 export default function Cricket() {
 
     const route = useRoute<any>();
+    const navigation = useNavigation<any>();
 
 const initialPlayers =
   route.params?.players || ["P1", "P2"];
@@ -87,15 +88,14 @@ const handleThrow = (value: number, multiplier: Multiplier) => {
     setHistory((h) => [
       ...h,
       {
-        players: [...players], // nykyinen state
+        players: [...players], 
         currentPlayer,
         throwsLeft,
       },
     ]);
-    return; // lopeta funktio tässä, ei pisteitä tai markkeja
+    return; 
   }
 
-  // --- seuraa alkuperäistä logiikkaa normaaleille heitoille ---
   setPlayers((prev) => {
     const newPlayers = [...prev];
     const player = { ...newPlayers[currentPlayer] };
@@ -130,7 +130,17 @@ const handleThrow = (value: number, multiplier: Multiplier) => {
     ]);
 
     if (checkWin(newPlayers)) {
-      Alert.alert("Game Over", `${player.name} wins!`);
+      Alert.alert(
+  "Peli ohi",
+  `${player.name} voitti!`,
+  [
+    {
+      text: "OK",
+      onPress: () => navigation.navigate("SelectGame"), 
+    },
+  ],
+  { cancelable: false }
+);
     }
 
     return newPlayers;
@@ -163,7 +173,7 @@ const handleThrow = (value: number, multiplier: Multiplier) => {
     <View style={styles.container}>
       {/* INFO */}
       <Text style={styles.turn}>
-        {players[currentPlayer].name} turn ({throwsLeft} darts left)
+        {players[currentPlayer].name} vuoro ({throwsLeft} tikkaa jäljellä)
       </Text>
 
       {/* SCOREBOARD */}
