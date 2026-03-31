@@ -2,13 +2,15 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { useAppTheme } from "../../../ui/ThemeContext";
 
 export default function SelectGameScreen() {
   const navigation = useNavigation<any>();
+  const { theme } = useAppTheme();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.screenText}>You are on Select Game screen</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Text style={[styles.screenText, { color: theme.colors.onBackground }]}>You are on Select Game screen</Text>
       
       <Button
         mode="contained"
