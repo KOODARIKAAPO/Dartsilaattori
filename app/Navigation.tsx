@@ -26,7 +26,6 @@ import RegisterScreen from "../features/auth/RegisterScreen";
 import { useAppTheme } from "../ui/ThemeContext";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator();
 
 // Home Stack Navigator
 function HomeStack() {
