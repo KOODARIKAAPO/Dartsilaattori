@@ -5,11 +5,13 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../types/NavigationType";
 import { loginWithEmail } from "../../firebase/Auth";
+import { useAppTheme } from "../../ui/ThemeContext";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Login">;
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { theme } = useAppTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -27,8 +29,8 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Title style={styles.title}>Kirjaudu</Title>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Title style={[styles.title, { color: theme.colors.onBackground }]}>Kirjaudu</Title>
 
       <TextInput
         label="Sähköposti"

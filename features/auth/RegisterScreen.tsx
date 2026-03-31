@@ -6,11 +6,13 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../types/NavigationType";
 import { registerWithEmailAndDisplayName } from "../../firebase/Auth";
 import { updateUserProfileDisplayName } from "../../firebase/Firestore";
+import { useAppTheme } from "../../ui/ThemeContext";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Register">;
 
 export default function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { theme } = useAppTheme();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -48,8 +50,8 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Title style={styles.title}>Rekisteröidy</Title>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Title style={[styles.title, { color: theme.colors.onBackground }]}>Rekisteröidy</Title>
 
       <TextInput
         label="Käyttäjänimi"
