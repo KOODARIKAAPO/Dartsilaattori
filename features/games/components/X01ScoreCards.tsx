@@ -31,7 +31,7 @@ export default function X01ScoreCards({
   const theme = useTheme();
   const styles = createStyles(theme);
 
-  // Pelaajakortit näyttävät pisteet, voitetut legiät ja ottelun keskiarvon.
+  // Pelaajakortit näyttävät pisteet, voitetut legit ja keskiarvon.
   return (
     <View style={styles.scoreCards}>
       {players.map((player) => {

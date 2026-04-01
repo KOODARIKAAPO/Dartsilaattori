@@ -17,6 +17,7 @@ type PlayerInput = {
 type X01Action =
   | {type: "START_GAME"; payload: {startingScore: X01Variant; players: PlayerInput[];}}
   | {type: "SUBMIT_TURN"; payload: number;}
+  | {type: "SET_DOUBLE_ATTEMPTS"; payload: {turnTimestamp: number; attempts: number;}}
   | {type: "START_NEXT_LEG";}
   | {type: "RESET_MATCH";}
   | {type: "UNDO_LAST_TURN";}
@@ -30,6 +31,16 @@ export function x01Reducer( state: X01GameState,action: X01Action): X01GameState
 
     case "SUBMIT_TURN":
       return applyThrow(state, action.payload);
+
+    case "SET_DOUBLE_ATTEMPTS":
+      return {
+        ...state,
+        turns: state.turns.map((turn) =>
+          turn.timestamp === action.payload.turnTimestamp
+            ? { ...turn, doubleAttempts: action.payload.attempts }
+            : turn
+        ),
+      };
 
     case "START_NEXT_LEG":
       return startNextLeg(state);
