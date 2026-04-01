@@ -1,7 +1,7 @@
+//statistiikan keräämiseen ja tallentamiseen liittyvät tilat sekä funktiot
+
 import { useEffect, useMemo, useState } from "react";
 import type { ThrowTurn, X01GameState } from "../../../types/X01Types";
-import { auth } from "../../../firebase/Auth";
-import { addGameForUser } from "../../../firebase/Firestore";
 
 type UseX01StatsParams = {
   state: X01GameState;
@@ -9,6 +9,7 @@ type UseX01StatsParams = {
   isMatchFinished: boolean;
   winnerId: string | null;
   mainPlayerId: string | null;
+  setDoubleAttempts: (turnTimestamp: number, attempts: number) => void;
 };
 
 export function useX01Stats({
@@ -17,9 +18,9 @@ export function useX01Stats({
   isMatchFinished,
   winnerId,
   mainPlayerId,
+  setDoubleAttempts,
 }: UseX01StatsParams) {
   const [showStatsPrompt, setShowStatsPrompt] = useState(false);
-  const [dartsOnDouble, setDartsOnDouble] = useState<number | null>(null);
   const [dartsToCheckout, setDartsToCheckout] = useState<number | null>(null);
   const [bustDartsUsed, setBustDartsUsed] = useState<Record<string, number>>(
     {}
@@ -27,21 +28,23 @@ export function useX01Stats({
   const [pendingBustTurn, setPendingBustTurn] = useState<ThrowTurn | null>(
     null
   );
+  const [pendingDoubleTurn, setPendingDoubleTurn] = useState<ThrowTurn | null>(
+    null
+  );
   const [statsSaving, setStatsSaving] = useState(false);
   const [statsSaved, setStatsSaved] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
 
-  // Tilastot kirjataan vain "pääpelaajalle" (ensimmäinen pelaaja).
   const isMainWinner =
     Boolean(mainPlayerId) &&
     Boolean(winnerId) &&
     winnerId === mainPlayerId;
 
-  // Siivotaan bustien seurantaa jos heittolistasta poistuu rivejä (undo/reset).
   useEffect(() => {
     if (state.turns.length === 0) {
       setBustDartsUsed({});
       setPendingBustTurn(null);
+      setPendingDoubleTurn(null);
       return;
     }
 
@@ -58,9 +61,9 @@ export function useX01Stats({
       }
       return changed ? next : prev;
     });
+
   }, [state.turns]);
 
-  // Etsitään uusin bust, josta puuttuu "montako tikkaa" -syöte.
   useEffect(() => {
     if (isFinished || isMatchFinished) {
       setPendingBustTurn(null);
@@ -78,9 +81,33 @@ export function useX01Stats({
     setPendingBustTurn(missingBust ?? null);
   }, [bustDartsUsed, isFinished, isMatchFinished, mainPlayerId, state.turns]);
 
-  // Näytetään tilastoprompti vain jos pääpelaaja voitti legin.
   useEffect(() => {
-    if (!isFinished) {
+    if (state.turns.length === 0) {
+      setPendingDoubleTurn(null);
+      return;
+    }
+
+    const isDoubleOpportunity = (turn: ThrowTurn) => {
+      const inStartRange =
+        turn.previousScore > 1 && turn.previousScore < 50;
+      const inEndRange = turn.newScore > 1 && turn.newScore < 50;
+      return inStartRange || inEndRange;
+    };
+
+    const missingDouble = [...state.turns]
+      .reverse()
+      .find((turn) => {
+        const key = `${turn.timestamp}`;
+        if (turn.doubleAttempts != null) return false;
+        if (!isDoubleOpportunity(turn)) return false;
+        return true;
+      });
+
+    setPendingDoubleTurn(missingDouble ?? null);
+  }, [state.turns]);
+
+  useEffect(() => {
+    if (!isMatchFinished) {
       setShowStatsPrompt(false);
       return;
     }
@@ -89,21 +116,19 @@ export function useX01Stats({
       return;
     }
     setShowStatsPrompt(true);
-  }, [isFinished, isMainWinner, statsSaved]);
+  }, [isMatchFinished, isMainWinner, statsSaved]);
 
-  // Nollataan prompttien ja tilastojen tilat uuden legin/matsin alussa.
   const resetStatsTracking = () => {
     setShowStatsPrompt(false);
-    setDartsOnDouble(null);
     setDartsToCheckout(null);
     setBustDartsUsed({});
     setPendingBustTurn(null);
+    setPendingDoubleTurn(null);
     setStatsSaving(false);
     setStatsSaved(false);
     setStatsError(null);
   };
 
-  // Lasketaan pääpelaajan pisteet ja tikat; checkout vain jos hän voitti.
   const statsSummary = useMemo(() => {
     if (!mainPlayerId) return null;
     const mainTurns = state.turns.filter(
@@ -158,84 +183,37 @@ export function useX01Stats({
     setPendingBustTurn(null);
   };
 
-  // Tallennetaan yksi peli Firestoreen; aggregaattitilastot päivittyvät palvelimella.
-  const handleSaveStats = async () => {
+  const handleDoubleDartsUsed = (value: number) => {
+    if (!pendingDoubleTurn) return;
+    setDoubleAttempts(pendingDoubleTurn.timestamp, value);
+    setPendingDoubleTurn(null);
+  };
+
+  // Voiton tallennus: käytä kaikkia legin tuplayrityksiä.
+  // Vain vahvistaa syötteet; varsinainen tallennus tehdään ottelun lopussa.
+  const handleSaveStats = () => {
     if (!statsSummary) return;
     if (!isMainWinner) return;
-    if (dartsOnDouble == null || dartsToCheckout == null) return;
-    if (statsSaving || statsSaved) return;
-
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setStatsError("Kirjaudu sisään tallentaaksesi tilastot.");
+    if (dartsToCheckout == null) return;
+    if (pendingDoubleTurn) {
+      setStatsError("Syötä tuplayritykset ennen tallennusta.");
       return;
     }
+    if (statsSaving || statsSaved) return;
 
     setStatsSaving(true);
     setStatsError(null);
 
-    try {
-      await addGameForUser(uid, {
-        points: statsSummary.totalPoints,
-        dartsThrown: statsSummary.totalDartsThrown,
-        doublesAttempted: dartsOnDouble,
-        doublesHit: 1,
-        checkout: statsSummary.checkout,
-      });
-      setStatsSaved(true);
-      setShowStatsPrompt(false);
-    } catch (error) {
-      setStatsError("Tilastojen tallennus epäonnistui.");
-    } finally {
-      setStatsSaving(false);
-    }
+    setStatsSaved(true);
+    setShowStatsPrompt(false);
+    setStatsSaving(false);
   };
-
-  // Jos pääpelaaja häviää, kirjataan hänen pisteet/tikat automaattisesti ilman prompttia.
-  useEffect(() => {
-    if (!isFinished) return;
-    if (!mainPlayerId) return;
-    if (statsSaved || statsSaving) return;
-    if (!winnerId || winnerId === mainPlayerId) return;
-    if (!statsSummary) return;
-
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-
-    const saveLoss = async () => {
-      try {
-        setStatsSaving(true);
-        await addGameForUser(uid, {
-          points: statsSummary.totalPoints,
-          dartsThrown: statsSummary.totalDartsThrown,
-          doublesAttempted: 0,
-          doublesHit: 0,
-          checkout: null,
-        });
-        setStatsSaved(true);
-      } catch (error) {
-        setStatsError("Tilastojen tallennus epäonnistui.");
-      } finally {
-        setStatsSaving(false);
-      }
-    };
-
-    void saveLoss();
-  }, [
-    isFinished,
-    mainPlayerId,
-    statsSaved,
-    statsSaving,
-    statsSummary,
-    winnerId,
-  ]);
 
   return {
     showStatsPrompt,
-    dartsOnDouble,
-    setDartsOnDouble,
     dartsToCheckout,
     setDartsToCheckout,
+    statsSummary,
     showBustPrompt:
       Boolean(pendingBustTurn) && !isFinished && !isMatchFinished,
     handleBustDartsUsed,
@@ -244,5 +222,8 @@ export function useX01Stats({
     statsSaved,
     statsError,
     resetStatsTracking,
+    showDoublePrompt: Boolean(pendingDoubleTurn) && !pendingBustTurn,
+    pendingDoubleTurn,
+    handleDoubleDartsUsed,
   };
 }

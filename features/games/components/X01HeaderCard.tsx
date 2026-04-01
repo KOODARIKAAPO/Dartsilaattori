@@ -3,17 +3,28 @@ import { StyleSheet } from "react-native";
 import { Button, Surface, Text, useTheme } from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 import X01StatsPrompt from "./X01StatsPrompt";
+import X01StatsSummary from "./X01StatsSummary";
 
 type StatsPromptProps = {
   visible: boolean;
-  dartsOnDouble: number | null;
   dartsToCheckout: number | null;
-  onSelectDartsOnDouble: (value: number) => void;
   onSelectDartsToCheckout: (value: number) => void;
   onSave: () => void;
   saving: boolean;
   saved: boolean;
   error: string | null;
+};
+
+type StatsSummaryProps = {
+  visible: boolean;
+  players: {
+    id: string;
+    name: string;
+    average: number | null;
+    dartsThrown: number | null;
+    doublesAttempted: number | null;
+    doublesHit: number | null;
+  }[];
 };
 
 type Props = {
@@ -33,7 +44,9 @@ type Props = {
   outlinedTextColor: string;
   onNextLeg: () => void;
   onResetMatch: () => void;
+  onGoHome: () => void;
   statsPrompt: StatsPromptProps;
+  statsSummary: StatsSummaryProps;
 };
 
 export default function X01HeaderCard({
@@ -53,12 +66,14 @@ export default function X01HeaderCard({
   outlinedTextColor,
   onNextLeg,
   onResetMatch,
+  onGoHome,
   statsPrompt,
+  statsSummary,
 }: Props) {
   const theme = useTheme();
   const styles = createStyles(theme);
 
-  // Yläkortti näyttää joko vuorossa olevan pelaajan tai legin/matsin lopun.
+  // Yläkortti näyttää joko vuorossa olevan pelaajan tai legin/pelin lopun.
   return (
     <Surface style={styles.headerCard} elevation={1}>
       {showCurrentPlayer && currentPlayerScore != null ? (
@@ -117,6 +132,7 @@ export default function X01HeaderCard({
             </Text>
           ) : null}
           <X01StatsPrompt {...statsPrompt} />
+          <X01StatsSummary {...statsSummary} />
           <Button
             mode="outlined"
             textColor={outlinedTextColor}
@@ -124,6 +140,14 @@ export default function X01HeaderCard({
             style={styles.nextLegButton}
           >
             Uusi ottelu
+          </Button>
+          <Button
+            mode="outlined"
+            textColor={outlinedTextColor}
+            onPress={onGoHome}
+            style={styles.nextLegButton}
+          >
+            Koti
           </Button>
         </>
       ) : null}
@@ -167,5 +191,6 @@ const createStyles = (theme: MD3Theme) =>
     nextLegButton: {
       marginTop: 12,
       alignSelf: "flex-start",
+      minWidth: 140,
     },
   });

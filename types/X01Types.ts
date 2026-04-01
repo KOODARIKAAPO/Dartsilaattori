@@ -27,6 +27,7 @@ export interface ThrowTurn {
   previousScore: number;
   newScore: number;
   isBust?: boolean;
+  doubleAttempts?: number;
   timestamp: number;
 }
 

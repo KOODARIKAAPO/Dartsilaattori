@@ -26,11 +26,15 @@ export function useX01Game({startingScore, players }: UseX01GameParams)
     createX01Game({ startingScore, players })
   );
 
-  // Nykyinen pelaaja on aina reducerin tilasta; UI ei päätä vuoroja itse.
+  // Nykyinen pelaaja Tulee aina tilasta, frontista ei tarvitse hakea erikseen.
   const currentPlayer = getCurrentPlayer(state);
 
   const submitPlayerTurn = (points: number) => {
     dispatch({ type: "SUBMIT_TURN", payload: points });
+  };
+
+  const setDoubleAttempts = (turnTimestamp: number, attempts: number) => {
+    dispatch({ type: "SET_DOUBLE_ATTEMPTS", payload: { turnTimestamp, attempts } });
   };
 
   const undo = () => {
@@ -70,6 +74,7 @@ export function useX01Game({startingScore, players }: UseX01GameParams)
     isFinished: state.isFinished,
     checkout,
     submitPlayerTurn,
+    setDoubleAttempts,
     undo,
     startNextLeg,
     resetMatch,

@@ -1,6 +1,6 @@
 //pelin keskiarvon laskentaan luotu hookki (vain frontissa)
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ThrowTurn } from "../../../types/X01Types";
 
 type UseX01MatchAveragesParams = {
@@ -30,19 +30,29 @@ export function useX01MatchAverages({ turns, isFinished }: UseX01MatchAveragesPa
     [matchTurns, storedFinishedLeg, turns]
   );
 
+  const getPlayerTotals = useCallback(
+    (playerId: string) => {
+      const playerTurns = allMatchTurns.filter(
+        (turn) => turn.playerId === playerId
+      );
+      const points = playerTurns.reduce(
+        (sum, turn) => sum + (turn.isBust ? 0 : turn.points),
+        0
+      );
+      const darts = playerTurns.length * 3;
+      return { points, darts };
+    },
+    [allMatchTurns]
+  );
+
   // 3-tikan keskiarvo koko ottelusta per pelaaja.
-  const getPlayerAverage = (playerId: string) => {
-    const playerTurns = allMatchTurns.filter(
-      (turn) => turn.playerId === playerId
-    );
-    if (playerTurns.length === 0) return 0;
-    const points = playerTurns.reduce(
-      (sum, turn) => sum + (turn.isBust ? 0 : turn.points),
-      0
-    );
-    const darts = playerTurns.length * 3;
-    return darts > 0 ? (points / darts) * 3 : 0;
-  };
+  const getPlayerAverage = useCallback(
+    (playerId: string) => {
+      const { points, darts } = getPlayerTotals(playerId);
+      return darts > 0 ? (points / darts) * 3 : 0;
+    },
+    [getPlayerTotals]
+  );
 
   // Nollataan kun uusi peli alkaa
   const resetMatchAverages = () => {
@@ -52,6 +62,7 @@ export function useX01MatchAverages({ turns, isFinished }: UseX01MatchAveragesPa
 
   return {
     getPlayerAverage,
+    getPlayerTotals,
     resetMatchAverages,
   };
 }
