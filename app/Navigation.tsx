@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { User } from "firebase/auth";
 
 import { RootStackParamList } from "../types/NavigationType";
@@ -11,6 +10,7 @@ import HomeScreen from "../features/home/HomeScreen";
 import ProfileScreen from "../features/profile/ProfileScreen";
 import FriendsScreen from "../features/friends/FriendsScreen";
 import StatsScreen from "../features/stats/StatsScreen";
+import GameHistoryScreen from "../features/stats/GameHistoryScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
 import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
@@ -192,6 +192,11 @@ export default function Navigation() {
               name="Stats"
               component={StatsScreen}
               options={{ title: "Tilastot" }}
+            />
+            <Stack.Screen
+              name="GameHistory"
+              component={GameHistoryScreen}
+              options={{ title: "Pelihistoria" }}
             />
 
             <Stack.Screen
