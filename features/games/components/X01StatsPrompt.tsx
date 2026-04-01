@@ -5,9 +5,7 @@ import type { MD3Theme } from "react-native-paper";
 
 type Props = {
   visible: boolean;
-  dartsOnDouble: number | null;
   dartsToCheckout: number | null;
-  onSelectDartsOnDouble: (value: number) => void;
   onSelectDartsToCheckout: (value: number) => void;
   onSave: () => void;
   saving: boolean;
@@ -17,9 +15,7 @@ type Props = {
 
 export default function X01StatsPrompt({
   visible,
-  dartsOnDouble,
   dartsToCheckout,
-  onSelectDartsOnDouble,
   onSelectDartsToCheckout,
   onSave,
   saving,
@@ -30,31 +26,12 @@ export default function X01StatsPrompt({
   const theme = useTheme();
   const styles = createStyles(theme);
 
-  // Loppuheiton promptti: tuplat + checkout-tikat ja tallennus.
+  // Checkoutin promptti: checkout-tikat ja tallennus.
   return (
     <Surface style={styles.statsPrompt} elevation={0}>
       <Text variant="titleSmall" style={styles.statsPromptTitle}>
-        Tilastot (legin viimeinen vuoro)
+        Tilastot (ottelun viimeinen vuoro)
       </Text>
-
-      <View style={styles.row}>
-        <Text variant="bodyMedium" style={styles.label}>
-          Montako tikkaa tuplaan?
-        </Text>
-        <View style={styles.buttons}>
-          {[1, 2, 3].map((value) => (
-            <Button
-              key={`double-${value}`}
-              mode={dartsOnDouble === value ? "contained" : "outlined"}
-              onPress={() => onSelectDartsOnDouble(value)}
-              compact
-              style={styles.button}
-            >
-              {value}
-            </Button>
-          ))}
-        </View>
-      </View>
 
       <View style={styles.row}>
         <Text variant="bodyMedium" style={styles.label}>
@@ -88,12 +65,11 @@ export default function X01StatsPrompt({
         disabled={
           saving ||
           saved ||
-          dartsOnDouble == null ||
           dartsToCheckout == null
         }
         style={styles.saveButton}
       >
-        {saved ? "Tallennettu" : "Tallenna tilastot"}
+        {saved ? "Vahvistettu" : "Vahvista tiedot"}
       </Button>
     </Surface>
   );

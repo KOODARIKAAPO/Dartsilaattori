@@ -1,17 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { Surface, useTheme } from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
+import { useNavigation } from "@react-navigation/native";
 import { useX01Game } from "../hooks/useX01Game";
 import { useX01Stats } from "../hooks/useX01Stats";
 import { useX01MatchAverages } from "../hooks/useX01MatchAverages";
+import { useX01MatchState } from "../hooks/useX01MatchState";
+import { useX01TurnInput } from "../hooks/useX01TurnInput";
 import DartsKeyboard from "./Dartskeyboard";
 import X01BustPrompt from "./X01BustPrompt";
+import X01DoubleAttemptPrompt from "./X01DoubleAttemptPrompt";
 import X01HeaderCard from "./X01HeaderCard";
 import X01ScoreCards from "./X01ScoreCards";
 import type { X01Variant } from "../../../types/X01Types";
+import { auth } from "../../../firebase/Auth";
+import { addGameForUser } from "../../../firebase/Firestore";
 
-//Pää pelikomponentti. 
+//Pää pelikomponentti. X01 ohjauskeskus. Pelkkä UI ja tilahallinta
 
 type PlayerInput = {
   id: string;
@@ -29,6 +35,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
   const theme = useTheme();
   const styles = createStyles(theme);
   const outlinedTextColor = theme.colors.onSurface;
+  const navigation = useNavigation<any>();
 
   // Tuodaan pelin tile ja logiikka useX01Game hookista
   const {
@@ -40,6 +47,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     isFinished,
     checkout,
     submitPlayerTurn,
+    setDoubleAttempts,
     undo,
     startNextLeg,
     resetMatch,
@@ -49,62 +57,58 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     players,
   });
 
-  // Ottelun (best-of) tila: voitetut legiät per pelaaja
-  const [matchWins, setMatchWins] = useState<Record<string, number>>(() =>
+  const { getPlayerAverage, getPlayerTotals, resetMatchAverages } =
+    useX01MatchAverages({
+      turns: state.turns,
+      isFinished,
+    });
+
+  const mainPlayerId = players[0]?.id ?? null;
+  const [matchDoubleAttempts, setMatchDoubleAttempts] = useState<
+    Record<string, number>
+  >(() =>
     players.reduce(
       (acc, player) => ({ ...acc, [player.id]: 0 }),
       {} as Record<string, number>
     )
   );
-  // Ottelun voittaja (kun best-of täyttyy)
-  const [matchWinnerId, setMatchWinnerId] = useState<string | null>(null);
-  // Keskeneräisen vuoron heitot (1–3 tikkaa)
-  const [pendingDarts, setPendingDarts] = useState<number[]>([]);
-
-  // Ottelun tilalaskelmat
-  const winsNeeded = Math.ceil(bestOf / 2);
-  const legsPlayed = Object.values(matchWins).reduce(
-    (sum, value) => sum + value,
-    0
-  );
-
-  const winner = gamePlayers.find((player) => player.id === winnerId) ?? null;
-  const matchWinner =
-    gamePlayers.find((player) => player.id === matchWinnerId) ?? null;
-  const isMatchFinished = matchWinnerId !== null;
-  const currentLeg = Math.min(
-    legsPlayed + (isMatchFinished ? 0 : 1),
-    bestOf
-  );
-  const pendingMatchWin =
-    winnerId != null
-      ? (matchWins[winnerId] ?? 0) + 1 >= winsNeeded
-      : false;
-  // Vuoron kertymä (vaikuttaa reaaliaikaiseen pistetilanteeseen)
-  const pendingTotal = pendingDarts.reduce((sum, dart) => sum + dart, 0);
-  const showPending =
-    pendingDarts.length > 0 && !isFinished && !isMatchFinished;
-  const previewScore = (currentScore: number) => {
-    if (!showPending) return currentScore;
-    const remaining = currentScore - pendingTotal;
-    return remaining >= 0 ? remaining : currentScore;
-  };
-
-  const { getPlayerAverage, resetMatchAverages } = useX01MatchAverages({
-    turns: state.turns,
-    isFinished,
+  const lastAggregatedLegKey = useRef<string | null>(null);
+  const [matchTotals, setMatchTotals] = useState({
+    points: 0,
+    dartsThrown: 0,
+    highestCheckout: 0,
   });
+  const lastAggregatedTotalsKey = useRef<string | null>(null);
+  const [matchSaving, setMatchSaving] = useState(false);
+  const [matchSaved, setMatchSaved] = useState(false);
 
-  const mainPlayerId = players[0]?.id ?? null;
+  const {
+    matchWins,
+    matchWinnerId,
+    isMatchFinished,
+    currentLeg,
+    pendingMatchWin,
+    handleNextLeg: advanceLeg,
+    handleResetMatch: resetMatchState,
+  } = useX01MatchState({
+    players,
+    bestOf,
+    isFinished,
+    winnerId,
+    startNextLeg,
+    resetMatch,
+  });
 
   const {
     showStatsPrompt,
-    dartsOnDouble,
-    setDartsOnDouble,
     dartsToCheckout,
     setDartsToCheckout,
+    statsSummary,
     showBustPrompt,
     handleBustDartsUsed,
+    showDoublePrompt,
+    pendingDoubleTurn,
+    handleDoubleDartsUsed,
     handleSaveStats,
     statsSaving,
     statsSaved,
@@ -116,106 +120,238 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     isMatchFinished,
     winnerId,
     mainPlayerId,
+    setDoubleAttempts,
   });
 
-  useEffect(() => {
-    // Best-of 1: merkitään ottelu valmiiksi heti legin päätyttyä
-    if (bestOf !== 1) return;
-    if (!isFinished || !winnerId) return;
-    if (matchWinnerId) return;
-
-    setMatchWins((prev) => ({
-      ...prev,
-      [winnerId]: (prev[winnerId] ?? 0) + 1,
-    }));
-    setMatchWinnerId(winnerId);
-  }, [bestOf, isFinished, winnerId, matchWinnerId]);
-
-  const handleThrow = (value: number, multiplier: 1 | 2 | 3) => {
-    // Lisätään tikka vuoroon; vaihdetaan pelaaja vasta 3 heiton jälkeen
-    if (isFinished || isMatchFinished) return;
-    const points = value * multiplier;
-
-    setPendingDarts((prev) => {
-      if (prev.length >= 3) return prev;
-      const next = [...prev, points];
-      const total = next.reduce((sum, dart) => sum + dart, 0);
-      const currentScore = currentPlayer?.currentScore ?? 0;
-      const remaining = currentScore - total;
-
-      if (remaining <= 0) {
-        if (remaining === 0 && dartsToCheckout == null) {
-          setDartsToCheckout(next.length);
+  const {
+    pendingDarts,
+    previewScore,
+    handleThrow,
+    handleUndo,
+    resetPendingDarts,
+  } =
+    useX01TurnInput({
+      isFinished,
+      isMatchFinished,
+      currentPlayer,
+      submitPlayerTurn,
+      undo,
+      onCheckoutDarts: (value) => {
+        if (dartsToCheckout == null) {
+          setDartsToCheckout(value);
         }
-        submitPlayerTurn(total);
-        return [];
-      }
+      },
+    });
 
-      if (next.length === 3) {
-        // TODO: Tallenna vuoron kokonaispisteet ja tikkojen määrä (statistiikka)
-        // TODO: Laske tuplien osumat ja tuplien yritykset
-        submitPlayerTurn(total);
-        return [];
-      }
+  const legAttempts = useMemo(() => {
+    if (!isFinished || state.turns.length === 0) {
+      return { key: null as string | null, attempts: {} as Record<string, number> };
+    }
 
+    const winningTurnKey = `${state.turns[state.turns.length - 1].timestamp}`;
+    const attempts: Record<string, number> = {};
+
+    for (const turn of state.turns) {
+      const value = turn.doubleAttempts;
+      if (value == null) continue;
+      attempts[turn.playerId] = (attempts[turn.playerId] ?? 0) + value;
+    }
+
+    return { key: winningTurnKey, attempts };
+  }, [isFinished, state.turns]);
+
+  const aggregateLegAttempts = useCallback(() => {
+    if (!legAttempts.key) return;
+    if (lastAggregatedLegKey.current === legAttempts.key) return;
+
+    setMatchDoubleAttempts((prev) => {
+      const next = { ...prev };
+      for (const [playerId, value] of Object.entries(legAttempts.attempts)) {
+        next[playerId] = (next[playerId] ?? 0) + value;
+      }
       return next;
     });
-  };
 
-  const handleUndo = () => {
-    // Peru ensisijaisesti viimeisin tikka; jos ei ole, peru koko vuoro
-    if (isMatchFinished) return;
-    setPendingDarts((prev) => {
-      if (prev.length > 0) {
-        return prev.slice(0, -1);
+    lastAggregatedLegKey.current = legAttempts.key;
+  }, [legAttempts]);
+
+  useEffect(() => {
+    if (!isFinished || !statsSummary) return;
+    const legKey =
+      state.turns.length > 0
+        ? `${state.turns[state.turns.length - 1].timestamp}`
+        : null;
+    if (!legKey) return;
+    if (lastAggregatedTotalsKey.current === legKey) return;
+
+    const mainWonLeg = winnerId === mainPlayerId;
+    if (mainWonLeg && isMatchFinished && !statsSaved) return;
+
+    setMatchTotals((prev) => ({
+      points: prev.points + statsSummary.totalPoints,
+      dartsThrown: prev.dartsThrown + statsSummary.totalDartsThrown,
+      highestCheckout: Math.max(prev.highestCheckout, statsSummary.checkout ?? 0),
+    }));
+    lastAggregatedTotalsKey.current = legKey;
+  }, [
+    isFinished,
+    isMatchFinished,
+    mainPlayerId,
+    statsSaved,
+    statsSummary,
+    state.turns,
+    winnerId,
+  ]);
+
+  useEffect(() => {
+    if (!isMatchFinished) return;
+    if (matchSaved || matchSaving) return;
+    if (!mainPlayerId) return;
+    if (pendingDoubleTurn) return;
+
+    const effectiveAttempts: Record<string, number> = { ...matchDoubleAttempts };
+    if (
+      legAttempts.key &&
+      lastAggregatedLegKey.current !== legAttempts.key
+    ) {
+      for (const [playerId, value] of Object.entries(legAttempts.attempts)) {
+        effectiveAttempts[playerId] =
+          (effectiveAttempts[playerId] ?? 0) + value;
       }
-      undo();
-      return prev;
+    }
+
+    const legKey =
+      state.turns.length > 0
+        ? `${state.turns[state.turns.length - 1].timestamp}`
+        : null;
+    if (legKey && lastAggregatedTotalsKey.current !== legKey) return;
+
+    if (matchWinnerId === mainPlayerId && !statsSaved) return;
+
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    const saveMatch = async () => {
+      try {
+        setMatchSaving(true);
+        await addGameForUser(uid, {
+          points: matchTotals.points,
+          dartsThrown: matchTotals.dartsThrown,
+          doublesAttempted: effectiveAttempts[mainPlayerId] ?? 0,
+          doublesHit: matchWins[mainPlayerId] ?? 0,
+          checkout: matchTotals.highestCheckout || null,
+        });
+        setMatchSaved(true);
+      } finally {
+        setMatchSaving(false);
+      }
+    };
+
+    void saveMatch();
+  }, [
+    isMatchFinished,
+    mainPlayerId,
+    matchDoubleAttempts,
+    matchSaved,
+    matchSaving,
+    matchTotals,
+    matchWins,
+    matchWinnerId,
+    pendingDoubleTurn,
+    state.turns,
+    statsSaved,
+    legAttempts,
+  ]);
+
+  const playerStats = useMemo(() => {
+    if (!isFinished && !isMatchFinished) return [];
+
+    const effectiveAttempts: Record<string, number> = { ...matchDoubleAttempts };
+    if (
+      legAttempts.key &&
+      lastAggregatedLegKey.current !== legAttempts.key
+    ) {
+      for (const [playerId, value] of Object.entries(legAttempts.attempts)) {
+        effectiveAttempts[playerId] =
+          (effectiveAttempts[playerId] ?? 0) + value;
+      }
+    }
+
+    return gamePlayers.map((player) => {
+      const { points, darts } = getPlayerTotals(player.id);
+      const average = darts > 0 ? (points / darts) * 3 : null;
+
+      const doublesAttempted = effectiveAttempts[player.id] ?? 0;
+      const doublesHit = matchWins[player.id] ?? 0;
+
+      return {
+        id: player.id,
+        name: player.name,
+        average,
+        dartsThrown: darts,
+        doublesAttempted,
+        doublesHit,
+      };
     });
-  };
+  }, [
+    gamePlayers,
+    getPlayerTotals,
+    isFinished,
+    isMatchFinished,
+    legAttempts,
+    matchDoubleAttempts,
+    matchWins,
+  ]);
 
   const handleResetLeg = () => {
     // Nollaa legi ja keskeneräiset heitot
     if (isMatchFinished) return;
-    setPendingDarts([]);
+    resetPendingDarts();
     resetStatsTracking();
     reset();
   };
 
   const handleNextLeg = () => {
-    // Kirjaa legin voitto ja siirry seuraavaan legiin
     if (!winnerId) return;
-    // TODO: Tallenna legin/matsin tilastot backendille tässä vaiheessa
-    const nextWins = {
-      ...matchWins,
-      [winnerId]: (matchWins[winnerId] ?? 0) + 1,
-    };
-    setMatchWins(nextWins);
-
-    if (nextWins[winnerId] >= winsNeeded) {
-      setMatchWinnerId(winnerId);
-      return;
-    }
-
-    setPendingDarts([]);
+    if (pendingDoubleTurn || showBustPrompt) return;
+    aggregateLegAttempts();
+    const matchEnded = advanceLeg();
+    if (matchEnded) return;
+    resetPendingDarts();
     resetStatsTracking();
-    startNextLeg();
   };
 
   const handleResetMatch = () => {
     // Nollaa koko ottelu (voitot + legi)
     // TODO: Varmista, ettei keskeneräinen ottelu ylikirjoita tallennettuja tilastoja
-    const resetWins = players.reduce(
-      (acc, player) => ({ ...acc, [player.id]: 0 }),
-      {} as Record<string, number>
-    );
-    setMatchWins(resetWins);
-    setMatchWinnerId(null);
-    setPendingDarts([]);
     resetMatchAverages();
     resetStatsTracking();
-    resetMatch();
+    resetPendingDarts();
+    setMatchDoubleAttempts(
+      players.reduce(
+        (acc, player) => ({ ...acc, [player.id]: 0 }),
+        {} as Record<string, number>
+      )
+    );
+    lastAggregatedLegKey.current = null;
+    setMatchTotals({
+      points: 0,
+      dartsThrown: 0,
+      highestCheckout: 0,
+    });
+    lastAggregatedTotalsKey.current = null;
+    setMatchSaving(false);
+    setMatchSaved(false);
+    resetMatchState();
   };
+
+  const handleGoHome = () => {
+    navigation.navigate("Home");
+  };
+
+  const winner = gamePlayers.find((player) => player.id === winnerId) ?? null;
+  const matchWinner =
+    gamePlayers.find((player) => player.id === matchWinnerId) ?? null;
 
   return (
     <Surface style={styles.root} elevation={0}>
@@ -237,16 +373,19 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
           outlinedTextColor={outlinedTextColor}
           onNextLeg={handleNextLeg}
           onResetMatch={handleResetMatch}
+          onGoHome={handleGoHome}
           statsPrompt={{
-            visible: showStatsPrompt && isFinished && Boolean(winnerId),
-            dartsOnDouble,
+            visible: showStatsPrompt && isMatchFinished && Boolean(winnerId),
             dartsToCheckout,
-            onSelectDartsOnDouble: setDartsOnDouble,
             onSelectDartsToCheckout: setDartsToCheckout,
             onSave: handleSaveStats,
             saving: statsSaving,
             saved: statsSaved,
             error: statsError,
+          }}
+          statsSummary={{
+            visible: isMatchFinished && playerStats.length > 0,
+            players: playerStats,
           }}
         />
 
@@ -262,18 +401,23 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
 
         {/* Syöttö: heittojen kirjaus DartsKeyboardilla */}
         <Surface style={styles.inputCard} elevation={1}>
+          <X01BustPrompt
+            visible={showBustPrompt}
+            onSelect={handleBustDartsUsed}
+          />
+          <X01DoubleAttemptPrompt
+            visible={showDoublePrompt}
+            playerName={pendingDoubleTurn?.playerName}
+            onSelect={handleDoubleDartsUsed}
+          />
           <DartsKeyboard
             onThrow={handleThrow}
             onUndo={handleUndo}
             onReset={handleResetLeg}
             inputPreview={pendingDarts}
+            disabled={showDoublePrompt || showBustPrompt}
           />
         </Surface>
-
-        <X01BustPrompt
-          visible={showBustPrompt}
-          onSelect={handleBustDartsUsed}
-        />
 
       </ScrollView>
     </Surface>
