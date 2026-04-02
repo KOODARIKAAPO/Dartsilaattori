@@ -9,7 +9,8 @@ import {
   Text,
   useTheme,
 } from "react-native-paper";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { MD3Theme } from "react-native-paper";
 
 import { auth, subscribeToAuthChanges } from "../../firebase/Auth";
@@ -22,6 +23,7 @@ import {
   RecentAverages,
   UserStats,
 } from "../../firebase/Firestore";
+import type { RootStackParamList } from "../../types/NavigationType";
 
 const emptyStats: UserStats = {
   totalPoints: 0,
@@ -88,6 +90,8 @@ function StatRow({ label, value, helper, theme }: StatRowProps) {
 export default function StatsScreen() {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList, "Stats">>();
 
   const [uid, setUid] = useState<string | null>(auth.currentUser?.uid ?? null);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -182,6 +186,13 @@ export default function StatsScreen() {
       <Text variant="headlineMedium" style={styles.title}>
         Omat tilastot
       </Text>
+      <Button
+        mode="outlined"
+        onPress={() => navigation.navigate("GameHistory")}
+        style={styles.historyButton}
+      >
+        Pelihistoria
+      </Button>
 
       {!uid ? (
         <Card style={styles.noticeCard} mode="contained">
@@ -448,5 +459,8 @@ const createStyles = (theme: MD3Theme) =>
     },
     refreshButton: {
       marginTop: 4,
+    },
+    historyButton: {
+      marginBottom: 16,
     },
   });

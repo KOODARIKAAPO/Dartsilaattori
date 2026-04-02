@@ -12,6 +12,7 @@ export type RootStackParamList = {
   Profile: undefined;
   Friends: undefined;
   Stats: undefined;
+  GameHistory: undefined;
   SelectGame: undefined;
   X01Setup: undefined;
   X01: {

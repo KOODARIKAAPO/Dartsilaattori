@@ -11,6 +11,7 @@ import ProfileScreen from "../features/profile/ProfileScreen";
 import FriendsScreen from "../features/friends/FriendsScreen";
 import StatsScreen from "../features/stats/StatsScreen";
 import ProgressScreen from "../features/progress/ProgressScreen";
+import GameHistoryScreen from "../features/stats/GameHistoryScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
 import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
@@ -192,6 +193,11 @@ export default function Navigation() {
               name="Stats"
               component={StatsScreen}
               options={{ title: "Tilastot" }}
+            />
+            <Stack.Screen
+              name="GameHistory"
+              component={GameHistoryScreen}
+              options={{ title: "Pelihistoria" }}
             />
 
             <Stack.Screen
