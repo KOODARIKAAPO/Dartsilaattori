@@ -26,4 +26,5 @@ export type RootStackParamList = {
   CricketSetup: undefined;
   CheckoutWarmup: undefined;
   Settings: undefined;
+  Progress: undefined;
 };

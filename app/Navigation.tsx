@@ -10,6 +10,7 @@ import HomeScreen from "../features/home/HomeScreen";
 import ProfileScreen from "../features/profile/ProfileScreen";
 import FriendsScreen from "../features/friends/FriendsScreen";
 import StatsScreen from "../features/stats/StatsScreen";
+import ProgressScreen from "../features/progress/ProgressScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
 import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
@@ -191,6 +192,12 @@ export default function Navigation() {
               name="Stats"
               component={StatsScreen}
               options={{ title: "Tilastot" }}
+            />
+
+            <Stack.Screen
+              name="Progress"
+              component={ProgressScreen}
+              options={{ title: "Kehitys" }}
             />
 
             <Stack.Screen
