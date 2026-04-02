@@ -118,6 +118,9 @@ export default function HomeScreen() {
           <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("Stats")}>
             Tilastot
           </Button>
+          <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("Progress") }>
+            Kehitys
+          </Button>
           <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("Settings")}>
             Asetukset
           </Button>
