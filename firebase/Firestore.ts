@@ -12,6 +12,7 @@ import {
   orderBy,
   limit,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 
 export const db = getFirestore(app);
@@ -140,6 +141,24 @@ export const getUserStats = async (uid: string) => {
   return snap.data() as UserStats;
 };
 
+// reaaliaikainen kuuntelu käyttäjän tilastoille
+export const subscribeToUserStats = (
+  uid: string,
+  onNext: (stats: UserStats | null) => void,
+  onError?: (error: unknown) => void
+) => {
+  const ref = doc(db, 'stats', uid);
+  return onSnapshot(
+    ref,
+    (snap) => {
+      onNext(snap.exists() ? (snap.data() as UserStats) : null);
+    },
+    (error) => {
+      if (onError) onError(error);
+    }
+  );
+};
+
 //käyttäjän pelien lisääminen ja tilastojen päivittäminen
 //1. luodaan referenssimuuttuja käyttäjän peleille
 export const addGameForUser = async (uid: string, game: GameInput) => {
@@ -216,6 +235,30 @@ export const getRecentGames = async (uid: string, max = 20) => {
     id: doc.id,
     ...doc.data(),
   }));
+};
+
+// reaaliaikainen kuuntelu viimeisimmistä peleistä
+export const subscribeToRecentGames = (
+  uid: string,
+  max: number,
+  onNext: (games: Array<{ id: string } & GameInput>) => void,
+  onError?: (error: unknown) => void
+) => {
+  const gamesRef = collection(db, 'users', uid, 'games');
+  const q = query(gamesRef, orderBy('createdAt', 'desc'), limit(max));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const games = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as GameInput),
+      }));
+      onNext(games);
+    },
+    (error) => {
+      if (onError) onError(error);
+    }
+  );
 };
 
 // laskee viimeisten pelien 3-dart keskiarvot on-demand
