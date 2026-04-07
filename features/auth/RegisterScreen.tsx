@@ -4,18 +4,22 @@ import { Button, TextInput, Title } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../types/NavigationType";
-import { registerWithEmail } from "../../firebase/Auth";
+import { registerWithEmailAndDisplayName } from "../../firebase/Auth";
+import { updateUserProfileDisplayName } from "../../firebase/Firestore";
+import { useAppTheme } from "../../ui/ThemeContext";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, "Register">;
 
 export default function RegisterScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { theme } = useAppTheme();
   const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !displayName) {
       Alert.alert("Virhe", "Täytä kaikki kentät.");
       return;
     }
@@ -31,15 +35,30 @@ export default function RegisterScreen() {
     }
 
     try {
-      await registerWithEmail(email.trim(), password);
+      const credential = await registerWithEmailAndDisplayName(
+        email.trim(),
+        password,
+        displayName.trim()
+      );
+      await updateUserProfileDisplayName(
+        credential.user.uid,
+        displayName.trim()
+      );
     } catch (error: any) {
       Alert.alert("Rekisteröinti epäonnistui", error.message);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Title style={styles.title}>Rekisteröidy</Title>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Title style={[styles.title, { color: theme.colors.onBackground }]}>Rekisteröidy</Title>
+
+      <TextInput
+        label="Käyttäjänimi"
+        value={displayName}
+        onChangeText={setDisplayName}
+        style={styles.input}
+      />
 
       <TextInput
         label="Sähköposti"

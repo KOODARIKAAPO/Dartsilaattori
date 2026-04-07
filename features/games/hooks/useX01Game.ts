@@ -1,3 +1,5 @@
+//X01 pelilogiikka, käyttää x01reduceria tilanhallintaan ja käyttää tarjoaa funktiot.
+
 import { useReducer } from "react";
 import { createX01Game, getCurrentPlayer } from "../engine/Logic";
 import { createInitialState, x01Reducer } from "./x01reducer";
@@ -24,10 +26,15 @@ export function useX01Game({startingScore, players }: UseX01GameParams)
     createX01Game({ startingScore, players })
   );
 
+  // Nykyinen pelaaja Tulee aina tilasta, frontista ei tarvitse hakea erikseen.
   const currentPlayer = getCurrentPlayer(state);
 
   const submitPlayerTurn = (points: number) => {
     dispatch({ type: "SUBMIT_TURN", payload: points });
+  };
+
+  const setDoubleAttempts = (turnTimestamp: number, attempts: number) => {
+    dispatch({ type: "SET_DOUBLE_ATTEMPTS", payload: { turnTimestamp, attempts } });
   };
 
   const undo = () => {
@@ -46,6 +53,7 @@ export function useX01Game({startingScore, players }: UseX01GameParams)
     dispatch({ type: "RESET" });
   };
 
+  // Check-out ehdotukset näytetään vain jos pisteet ovat realistisessa checkout-alueessa.
   const checkout = useMemo(() => {
     const score = state.players[state.currentPlayerIndex]?.currentScore;
 
@@ -66,6 +74,7 @@ export function useX01Game({startingScore, players }: UseX01GameParams)
     isFinished: state.isFinished,
     checkout,
     submitPlayerTurn,
+    setDoubleAttempts,
     undo,
     startNextLeg,
     resetMatch,

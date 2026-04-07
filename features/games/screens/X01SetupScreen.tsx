@@ -1,9 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Button, Text, TextInput, Surface, useTheme } from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import type { X01Variant } from "../../../types/X01Types";
+import { auth, subscribeToAuthChanges } from "../../../firebase/Auth";
 
 type PlayerInput = {
   id: string;
@@ -29,6 +30,27 @@ export default function X01SetupScreen() {
     { id: "p1", name: "" },
     { id: "p2", name: "" },
   ]);
+
+  useEffect(() => {
+    const applyUserName = (name?: string | null) => {
+      if (!name) return;
+      setPlayers((prev) => {
+        if (prev.length === 0) return prev;
+        if (prev[0].name.trim().length > 0) return prev;
+        const next = [...prev];
+        next[0] = { ...next[0], name };
+        return next;
+      });
+    };
+
+    applyUserName(auth.currentUser?.displayName ?? auth.currentUser?.email);
+
+    const unsubscribe = subscribeToAuthChanges((user) => {
+      applyUserName(user?.displayName ?? user?.email);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const canStart =
     players.length > 0 &&

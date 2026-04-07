@@ -1,13 +1,15 @@
+//statistiikan keräämiseen ja tallentamiseen liittyvät tilat sekä funktiot
+
 import { useEffect, useMemo, useState } from "react";
 import type { ThrowTurn, X01GameState } from "../../../types/X01Types";
-import { auth } from "../../../firebase/Auth";
-import { addGameForUser } from "../../../firebase/Firestore";
 
 type UseX01StatsParams = {
   state: X01GameState;
   isFinished: boolean;
   isMatchFinished: boolean;
   winnerId: string | null;
+  mainPlayerId: string | null;
+  setDoubleAttempts: (turnTimestamp: number, attempts: number) => void;
 };
 
 export function useX01Stats({
@@ -15,9 +17,10 @@ export function useX01Stats({
   isFinished,
   isMatchFinished,
   winnerId,
+  mainPlayerId,
+  setDoubleAttempts,
 }: UseX01StatsParams) {
   const [showStatsPrompt, setShowStatsPrompt] = useState(false);
-  const [dartsOnDouble, setDartsOnDouble] = useState<number | null>(null);
   const [dartsToCheckout, setDartsToCheckout] = useState<number | null>(null);
   const [bustDartsUsed, setBustDartsUsed] = useState<Record<string, number>>(
     {}
@@ -25,14 +28,23 @@ export function useX01Stats({
   const [pendingBustTurn, setPendingBustTurn] = useState<ThrowTurn | null>(
     null
   );
+  const [pendingDoubleTurn, setPendingDoubleTurn] = useState<ThrowTurn | null>(
+    null
+  );
   const [statsSaving, setStatsSaving] = useState(false);
   const [statsSaved, setStatsSaved] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
+
+  const isMainWinner =
+    Boolean(mainPlayerId) &&
+    Boolean(winnerId) &&
+    winnerId === mainPlayerId;
 
   useEffect(() => {
     if (state.turns.length === 0) {
       setBustDartsUsed({});
       setPendingBustTurn(null);
+      setPendingDoubleTurn(null);
       return;
     }
 
@@ -49,6 +61,7 @@ export function useX01Stats({
       }
       return changed ? next : prev;
     });
+
   }, [state.turns]);
 
   useEffect(() => {
@@ -61,43 +74,82 @@ export function useX01Stats({
       .reverse()
       .find(
         (turn) =>
-          turn.isBust && bustDartsUsed[`${turn.timestamp}`] == null
+          turn.isBust &&
+          turn.playerId === mainPlayerId &&
+          bustDartsUsed[`${turn.timestamp}`] == null
       );
     setPendingBustTurn(missingBust ?? null);
-  }, [bustDartsUsed, isFinished, isMatchFinished, state.turns]);
+  }, [bustDartsUsed, isFinished, isMatchFinished, mainPlayerId, state.turns]);
 
   useEffect(() => {
-    if (!isFinished) {
+    if (state.turns.length === 0) {
+      setPendingDoubleTurn(null);
+      return;
+    }
+
+    const isDoubleOpportunity = (turn: ThrowTurn) => {
+      const inStartRange =
+        turn.previousScore > 1 && turn.previousScore < 50;
+      const inEndRange = turn.newScore > 1 && turn.newScore < 50;
+      return inStartRange || inEndRange;
+    };
+
+    const missingDouble = [...state.turns]
+      .reverse()
+      .find((turn) => {
+        const key = `${turn.timestamp}`;
+        if (turn.doubleAttempts != null) return false;
+        if (!isDoubleOpportunity(turn)) return false;
+        return true;
+      });
+
+    setPendingDoubleTurn(missingDouble ?? null);
+  }, [state.turns]);
+
+  useEffect(() => {
+    if (!isMatchFinished) {
       setShowStatsPrompt(false);
       return;
     }
-    if (statsSaved) return;
+    if (!isMainWinner || statsSaved) {
+      setShowStatsPrompt(false);
+      return;
+    }
     setShowStatsPrompt(true);
-  }, [isFinished, statsSaved]);
+  }, [isMatchFinished, isMainWinner, statsSaved]);
 
   const resetStatsTracking = () => {
     setShowStatsPrompt(false);
-    setDartsOnDouble(null);
     setDartsToCheckout(null);
     setBustDartsUsed({});
     setPendingBustTurn(null);
+    setPendingDoubleTurn(null);
     setStatsSaving(false);
     setStatsSaved(false);
     setStatsError(null);
   };
 
   const statsSummary = useMemo(() => {
-    if (!isFinished || !winnerId) return null;
-    if (state.turns.length === 0) return null;
+    if (!mainPlayerId) return null;
+    const mainTurns = state.turns.filter(
+      (turn) => turn.playerId === mainPlayerId
+    );
+    if (mainTurns.length === 0) return null;
 
-    const lastIndex = state.turns.length - 1;
-    const totalPoints = state.turns.reduce(
+    const lastOverallTurn =
+      state.turns.length > 0 ? state.turns[state.turns.length - 1] : null;
+    const isWinningTurn =
+      isMainWinner &&
+      lastOverallTurn != null &&
+      lastOverallTurn.playerId === mainPlayerId;
+
+    const totalPoints = mainTurns.reduce(
       (sum, turn) => sum + (turn.isBust ? 0 : turn.points),
       0
     );
     const checkoutDarts = dartsToCheckout ?? 3;
-    const totalDartsThrown = state.turns.reduce((sum, turn, index) => {
-      if (index === lastIndex) {
+    const totalDartsThrown = mainTurns.reduce((sum, turn) => {
+      if (isWinningTurn && lastOverallTurn?.timestamp === turn.timestamp) {
         return sum + checkoutDarts;
       }
       if (turn.isBust) {
@@ -106,15 +158,23 @@ export function useX01Stats({
       }
       return sum + 3;
     }, 0);
-    const lastTurn = state.turns[state.turns.length - 1];
-    const checkout = lastTurn && !lastTurn.isBust ? lastTurn.points : null;
+    const checkout =
+      isWinningTurn && lastOverallTurn && !lastOverallTurn.isBust
+        ? lastOverallTurn.points
+        : null;
 
     return {
       totalPoints,
       totalDartsThrown,
       checkout,
     };
-  }, [bustDartsUsed, dartsToCheckout, isFinished, state.turns, winnerId]);
+  }, [
+    bustDartsUsed,
+    dartsToCheckout,
+    isMainWinner,
+    mainPlayerId,
+    state.turns,
+  ]);
 
   const handleBustDartsUsed = (value: number) => {
     if (!pendingBustTurn) return;
@@ -123,49 +183,47 @@ export function useX01Stats({
     setPendingBustTurn(null);
   };
 
-  const handleSaveStats = async () => {
-    if (!statsSummary) return;
-    if (dartsOnDouble == null || dartsToCheckout == null) return;
-    if (statsSaving || statsSaved) return;
+  const handleDoubleDartsUsed = (value: number) => {
+    if (!pendingDoubleTurn) return;
+    setDoubleAttempts(pendingDoubleTurn.timestamp, value);
+    setPendingDoubleTurn(null);
+  };
 
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      setStatsError("Kirjaudu sisään tallentaaksesi tilastot.");
+  // Voiton tallennus: käytä kaikkia legin tuplayrityksiä.
+  // Vain vahvistaa syötteet; varsinainen tallennus tehdään ottelun lopussa.
+  const handleSaveStats = () => {
+    if (!statsSummary) return;
+    if (!isMainWinner) return;
+    if (dartsToCheckout == null) return;
+    if (pendingDoubleTurn) {
+      setStatsError("Syötä tuplayritykset ennen tallennusta.");
       return;
     }
+    if (statsSaving || statsSaved) return;
 
     setStatsSaving(true);
     setStatsError(null);
 
-    try {
-      await addGameForUser(uid, {
-        points: statsSummary.totalPoints,
-        dartsThrown: statsSummary.totalDartsThrown,
-        doublesAttempted: dartsOnDouble,
-        doublesHit: 1,
-        checkout: statsSummary.checkout,
-      });
-      setStatsSaved(true);
-      setShowStatsPrompt(false);
-    } catch (error) {
-      setStatsError("Tilastojen tallennus epäonnistui.");
-    } finally {
-      setStatsSaving(false);
-    }
+    setStatsSaved(true);
+    setShowStatsPrompt(false);
+    setStatsSaving(false);
   };
 
   return {
     showStatsPrompt,
-    dartsOnDouble,
-    setDartsOnDouble,
     dartsToCheckout,
     setDartsToCheckout,
-    showBustPrompt: Boolean(pendingBustTurn) && !isFinished && !isMatchFinished,
+    statsSummary,
+    showBustPrompt:
+      Boolean(pendingBustTurn) && !isFinished && !isMatchFinished,
     handleBustDartsUsed,
     handleSaveStats,
     statsSaving,
     statsSaved,
     statsError,
     resetStatsTracking,
+    showDoublePrompt: Boolean(pendingDoubleTurn) && !pendingBustTurn,
+    pendingDoubleTurn,
+    handleDoubleDartsUsed,
   };
 }
