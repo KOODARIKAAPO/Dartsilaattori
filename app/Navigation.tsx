@@ -13,6 +13,7 @@ import StatsScreen from "../features/stats/StatsScreen";
 import ProgressScreen from "../features/progress/ProgressScreen";
 import GameHistoryScreen from "../features/stats/GameHistoryScreen";
 import SelectGameScreen from "../features/games/screens/SelectGameScreen";
+import Screen101 from "../features/games/screens/101Screen";
 import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
 import CheckoutWarmupScreen from "../features/games/screens/CheckoutWarmupScreen";
@@ -212,6 +213,11 @@ export default function Navigation() {
               options={{ title: "Valitse peli" }}
             />
 
+            <Stack.Screen
+              name="Screen101"
+              component={Screen101}
+              options={{ title: "101" }}
+            />
             <Stack.Screen
               name="X01Setup"
               component={X01SetupScreen}
