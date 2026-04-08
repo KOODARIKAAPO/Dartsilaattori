@@ -1,12 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, View, Text, StyleSheet } from "react-native";
-import { Card, ActivityIndicator, Button, useTheme } from "react-native-paper";
+import { Card, ActivityIndicator, Button, SegmentedButtons, useTheme } from "react-native-paper";
 import { Svg, Polyline, Circle, Line, Path, Text as SvgText, Defs, LinearGradient, Stop } from "react-native-svg";
 import { auth, subscribeToAuthChanges } from "../../firebase/Auth";
-import {subscribeToRecentGames, subscribeToUserStats, GameInput, UserStats,
+import {subscribeToGamesSince, subscribeToUserStats, GameInput, UserStats,
 } from "../../firebase/Firestore";
 
-const MAX_GAMES = 30
+const DAY_OPTIONS = [
+  { value: 5, label: "5 pv" },
+  { value: 15, label: "15 pv" },
+  { value: 30, label: "30 pv" },
+]
 
 type GameRecord = GameInput & { id: string };
 
@@ -20,6 +24,7 @@ export default function ProgressScreen() {
   const [gamesLoading, setGamesLoading] = useState(true)
   const [statsLoading, setStatsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [dayRange, setDayRange] = useState(30)
   const loading = gamesLoading || statsLoading
 
   useEffect(() => {
@@ -41,12 +46,11 @@ export default function ProgressScreen() {
     }
 
     setGamesLoading(true)
-    setStatsLoading(true)
     setError(null)
 
-    const unsubscribe = subscribeToRecentGames(
+    const unsubscribe = subscribeToGamesSince(
       uid,
-      MAX_GAMES,
+      dayRange,
       (recentGames) => {
         setGames(recentGames);
         setGamesLoading(false);
@@ -57,6 +61,15 @@ export default function ProgressScreen() {
       }
     );
 
+    return () => {
+      unsubscribe();
+    };
+  }, [uid, dayRange]);
+
+  useEffect(() => {
+    if (!uid) return undefined;
+
+    setStatsLoading(true)
     const unsubscribeStats = subscribeToUserStats(
       uid,
       (nextStats) => {
@@ -70,7 +83,6 @@ export default function ProgressScreen() {
     );
 
     return () => {
-      unsubscribe();
       unsubscribeStats();
     };
   }, [uid]);
@@ -269,6 +281,19 @@ export default function ProgressScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <Text style={styles.title}>Kehitys</Text>
+      <View style={styles.filterRow}>
+        <Text style={styles.filterLabel}>Ajanjakso</Text>
+        <SegmentedButtons
+          value={dayRange.toString()}
+          onValueChange={(value) => setDayRange(Number(value))}
+          buttons={DAY_OPTIONS.map((option) => ({
+            value: option.value.toString(),
+            label: option.label,
+          }))}
+          density="small"
+          style={styles.filterButtons}
+        />
+      </View>
 
       {loading ? (
         <View style={styles.stateBox}>
@@ -283,7 +308,9 @@ export default function ProgressScreen() {
       ) : (
         <Card style={styles.card} mode="elevated">
           <Card.Content>
-            <Text style={styles.cardTitle}>Viimeisen 30 pelin keskiarvon kehitys</Text>
+            <Text style={styles.cardTitle}>
+              Viimeisen {dayRange} päivän keskiarvon kehitys
+            </Text>
 
             {hasData ? (
               <View>
@@ -464,7 +491,7 @@ export default function ProgressScreen() {
 
       <Card style={styles.card} mode="elevated">
         <Card.Content>
-          <Text style={styles.cardTitle}>Tupla % viimeiset 30 peliä</Text>
+          <Text style={styles.cardTitle}>Tupla % viimeiset {dayRange} päivää</Text>
           {doublesEfficiency.length > 0 ? (
             <View>
               <View style={styles.chartRow}>
@@ -633,6 +660,18 @@ const createStyles = (theme: any) =>
       color: theme.colors.onBackground,
       fontSize: 22,
       fontWeight: "700",
+    },
+    filterRow: {
+      marginBottom: 12,
+      gap: 8,
+    },
+    filterLabel: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    filterButtons: {
+      alignSelf: "flex-start",
     },
     card: {
       marginBottom: 16,
