@@ -17,7 +17,7 @@ export default function SelectGameScreen() {
         style={styles.button}
         onPress={() => navigation.navigate("Screen101")}
       >
-        101 yksinpeli
+        101 
       </Button>
       <Button
         mode="contained"

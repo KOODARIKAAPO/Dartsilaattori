@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Button, Surface, Text, useTheme } from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
@@ -51,6 +51,12 @@ function formatTurnSummary(darts: DartThrow[]): string {
   return darts.map((dart) => dart.label).join(" ").trim();
 }
 
+function getTurnBadgeLabel(turn: TurnRecord): string {
+  if (turn.won) return "CLEAR";
+  if (turn.bust) return "BUST";
+  return `${turn.darts.reduce((sum, dart) => sum + dart.points, 0)} p`;
+}
+
 function getInitialStageState() {
   return {
     stageIndex: 0,
@@ -85,12 +91,10 @@ export default function Screen101() {
   const stageLabel = `${currentStage.score} / ${stageDartLimit}`;
   const stageNumber = stageIndex + 1;
   const dartsLeft = stageDartLimit - dartsUsed;
-
-  const pendingTotal = useMemo(
-    () => pendingDarts.reduce((sum, dart) => sum + dart.points, 0),
-    [pendingDarts]
+  const previewScore = Math.max(
+    score - pendingDarts.reduce((sum, dart) => sum + dart.points, 0),
+    0
   );
-  const previewScore = Math.max(score - pendingTotal, 0);
   const totalThrownDarts =
     turns.reduce((sum, turn) => sum + turn.darts.length, 0) +
     pendingDarts.length;
@@ -129,7 +133,7 @@ export default function Screen101() {
     setPendingDarts([]);
     setResetReason(null);
     setAdvanceMessage(
-      `Taso lapi! Seuraava tavoite: ${nextStage.score} pisteesta alas ${nextLimit} tikalla.`
+      `Seuraavaksi: ${nextStage.score} pisteestä alas ${nextLimit} tikalla.`
     );
   };
 
@@ -166,7 +170,7 @@ export default function Screen101() {
 
     if (bust) {
       if (ranOutOfDarts) {
-        failRun(`Et saanut ${currentStage.score}:aa ${stageDartLimit} tikalla.`);
+        failRun(`Et saanut tarvittavaa tulosta ${stageDartLimit} tikalla.`);
       } else {
         setResetReason(null);
         setAdvanceMessage(null);
@@ -179,7 +183,7 @@ export default function Screen101() {
     setResetReason(null);
 
     if (ranOutOfDarts) {
-      failRun(`Et saanut ${currentStage.score}:aa ${stageDartLimit} tikalla.`);
+      failRun(`Et saanut tarvittavaa tulosta ${stageDartLimit} tikalla.`);
     }
   };
 
@@ -240,37 +244,37 @@ export default function Screen101() {
     <Surface style={styles.root} elevation={0}>
       <ScrollView contentContainerStyle={styles.content}>
         <Surface style={styles.headerCard} elevation={1}>
-          <Text variant="titleMedium" style={styles.label}>
-            X01 Challenge
-          </Text>
-          <Text variant="headlineSmall" style={styles.stageTitle}>
-            Taso {stageNumber}: {currentStage.score}
-          </Text>
-          <Text variant="displaySmall" style={styles.scoreValue}>
-            {isFinished ? 0 : previewScore}
-          </Text>
-          <Text variant="bodyMedium" style={styles.helperText}>
-            Saat rajatun maaran tikkoja per taso. Yli jaaneet tikat siirtyvat
-            bonuksena seuraavaan tasoon. Lopetus tehdaan tuplalla, ja jos taso
-            jaa kesken, peli alkaa alusta.
-          </Text>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroCopy}>
+              <Text variant="headlineSmall" style={styles.stageTitle}>
+                Taso {stageNumber}: {currentStage.score}
+              </Text>
+            </View>
+          </View>
 
-          {pendingDarts.length > 0 && !isFinished && (
-            <Text variant="bodyLarge" style={styles.pendingText}>
-              Heitot: {formatTurnSummary(pendingDarts)} ({pendingTotal} p)
+          <View style={styles.scorePanel}>
+            <Text variant="labelLarge" style={styles.scoreLabel}>
+              Jäljellä
             </Text>
-          )}
+            <Text variant="displaySmall" style={styles.scoreValue}>
+              {isFinished ? 0 : previewScore}
+            </Text>
+          </View>
 
           {advanceMessage && !isFinished && (
-            <Text variant="bodyLarge" style={styles.successText}>
-              {advanceMessage}
-            </Text>
+            <View style={styles.messageChipSuccess}>
+              <Text variant="bodyLarge" style={styles.successText}>
+                {advanceMessage}
+              </Text>
+            </View>
           )}
 
           {resetReason && !isFinished && (
-            <Text variant="bodyLarge" style={styles.failText}>
-              {resetReason}
-            </Text>
+            <View style={styles.messageChipError}>
+              <Text variant="bodyLarge" style={styles.failText}>
+                {resetReason}
+              </Text>
+            </View>
           )}
 
           {isFinished && (
@@ -300,7 +304,7 @@ export default function Screen101() {
             </View>
             <View style={styles.statItem}>
               <Text variant="labelMedium" style={styles.statLabel}>
-                Tikat jaljella
+                Tikkoja jäljellä
               </Text>
               <Text variant="headlineSmall" style={styles.statValue}>
                 {isFinished ? 0 : Math.max(dartsLeft, 0)}
@@ -315,6 +319,15 @@ export default function Screen101() {
               </Text>
             </View>
           </View>
+        </Surface>
+
+        <Surface style={styles.inputCard} elevation={1}>
+          <DartsKeyboard
+            onThrow={handleThrow}
+            onUndo={handleUndo}
+            onReset={handleReset}
+            inputPreview={pendingDarts}
+          />
         </Surface>
 
         <Surface style={styles.progressCard} elevation={1}>
@@ -344,6 +357,7 @@ export default function Screen101() {
                     style={[
                       styles.progressTitle,
                       isCurrent && styles.progressTitleCurrent,
+                      isDone && styles.progressTitleDone,
                     ]}
                   >
                     {stage.score}
@@ -353,6 +367,7 @@ export default function Screen101() {
                     style={[
                       styles.progressMeta,
                       isCurrent && styles.progressTitleCurrent,
+                      isDone && styles.progressMetaDone,
                     ]}
                   >
                     {limitLabel}
@@ -361,14 +376,6 @@ export default function Screen101() {
               );
             })}
           </View>
-        </Surface>
-
-        <Surface style={styles.inputCard} elevation={1}>
-          <DartsKeyboard
-            onThrow={handleThrow}
-            onUndo={handleUndo}
-            onReset={handleReset}
-          />
         </Surface>
 
         <Surface style={styles.historyCard} elevation={1}>
@@ -385,9 +392,34 @@ export default function Screen101() {
             </Button>
           </View>
 
+          <View style={styles.historySummaryRow}>
+            <View style={styles.historySummaryItem}>
+              <Text variant="labelMedium" style={styles.statLabel}>
+                Vuoroja
+              </Text>
+              <Text variant="titleLarge" style={styles.historySummaryValue}>
+                {turns.length}
+              </Text>
+            </View>
+            <View style={styles.historySummaryItem}>
+              <Text variant="labelMedium" style={styles.statLabel}>
+                Heitetyt tikat
+              </Text>
+              <Text variant="titleLarge" style={styles.historySummaryValue}>
+                {totalThrownDarts}
+              </Text>
+            </View>
+          </View>
+
+          <Text variant="bodyMedium" style={styles.helperText}>
+            Saat rajatun määrän tikkoja per taso. Yli jääneet tikat siirtyvät
+            bonuksena seuraavaan tasoon. Lopetus tehdään tuplalla, ja jos taso
+            jää kesken, peli alkaa alusta.
+          </Text>
+
           {turns.length === 0 ? (
             <Text variant="bodyMedium" style={styles.emptyText}>
-              Ei viela kirjattuja vuoroja.
+              Ei vielä kirjattuja vuoroja.
             </Text>
           ) : (
             <View style={styles.historyList}>
@@ -398,7 +430,7 @@ export default function Screen101() {
                 >
                   <View style={styles.historyMain}>
                     <Text variant="titleSmall" style={styles.historyScore}>
-                      {turn.stageLabel}: {turn.startScore} -&gt; {turn.endScore}
+                      {turn.stageLabel}: {turn.startScore} {"->"} {turn.endScore}
                     </Text>
                     <Text variant="bodyMedium" style={styles.historyThrows}>
                       {formatTurnSummary(turn.darts)}
@@ -412,14 +444,7 @@ export default function Screen101() {
                       turn.bust && styles.historyBadgeBust,
                     ]}
                   >
-                    {turn.won
-                      ? "CLEAR"
-                      : turn.bust
-                      ? "BUST"
-                      : `${turn.darts.reduce(
-                          (sum, dart) => sum + dart.points,
-                          0
-                        )} p`}
+                    {getTurnBadgeLabel(turn)}
                   </Text>
                 </View>
               ))}
@@ -444,9 +469,47 @@ const createStyles = (theme: MD3Theme) =>
     },
     headerCard: {
       backgroundColor: theme.colors.surface,
+      borderRadius: theme.roundness * 3,
+      padding: 16,
+      gap: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    heroTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    heroCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    stageBadge: {
+      minWidth: 110,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: theme.roundness * 2,
+      backgroundColor: theme.colors.primaryContainer,
+      gap: 2,
+    },
+    stageBadgeLabel: {
+      color: theme.colors.onPrimaryContainer,
+    },
+    stageBadgeValue: {
+      color: theme.colors.onPrimaryContainer,
+      fontWeight: "700",
+    },
+    scorePanel: {
+      backgroundColor: theme.colors.elevation.level2,
       borderRadius: theme.roundness * 2,
       padding: 16,
-      gap: 8,
+      gap: 6,
+    },
+    scoreLabel: {
+      color: theme.colors.onSurfaceVariant,
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
     },
     statsCard: {
       backgroundColor: theme.colors.surface,
@@ -464,6 +527,7 @@ const createStyles = (theme: MD3Theme) =>
       backgroundColor: theme.colors.surface,
       borderRadius: theme.roundness * 2,
       padding: 12,
+      gap: 10,
     },
     historyCard: {
       backgroundColor: theme.colors.surface,
@@ -479,20 +543,30 @@ const createStyles = (theme: MD3Theme) =>
     },
     scoreValue: {
       color: theme.colors.onSurface,
+      fontWeight: "700",
     },
     helperText: {
       color: theme.colors.onSurfaceVariant,
       lineHeight: 20,
     },
-    pendingText: {
-      color: theme.colors.primary,
+    messageChipSuccess: {
+      backgroundColor: theme.colors.primaryContainer,
+      borderRadius: 16,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    messageChipError: {
+      backgroundColor: theme.colors.errorContainer,
+      borderRadius: 16,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
     },
     successText: {
-      color: theme.colors.primary,
+      color: theme.colors.onPrimaryContainer,
       fontWeight: "600",
     },
     failText: {
-      color: theme.colors.error,
+      color: theme.colors.onErrorContainer,
       fontWeight: "600",
     },
     finishedRow: {
@@ -511,7 +585,7 @@ const createStyles = (theme: MD3Theme) =>
     },
     statItem: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.elevation.level2,
       borderRadius: theme.roundness * 1.5,
       padding: 12,
       gap: 4,
@@ -530,7 +604,7 @@ const createStyles = (theme: MD3Theme) =>
       flex: 1,
       borderRadius: theme.roundness * 1.5,
       padding: 12,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.elevation.level2,
       gap: 4,
     },
     progressItemCurrent: {
@@ -545,7 +619,20 @@ const createStyles = (theme: MD3Theme) =>
     progressTitleCurrent: {
       color: theme.colors.onPrimaryContainer,
     },
+    progressTitleDone: {
+      color: theme.colors.onSecondaryContainer,
+    },
     progressMeta: {
+      color: theme.colors.onSurfaceVariant,
+    },
+    progressMetaDone: {
+      color: theme.colors.onSecondaryContainer,
+    },
+    inputHeader: {
+      gap: 2,
+      paddingHorizontal: 4,
+    },
+    inputHelper: {
       color: theme.colors.onSurfaceVariant,
     },
     historyHeader: {
@@ -553,6 +640,20 @@ const createStyles = (theme: MD3Theme) =>
       justifyContent: "space-between",
       alignItems: "center",
       gap: 12,
+    },
+    historySummaryRow: {
+      flexDirection: "row",
+      gap: 12,
+    },
+    historySummaryItem: {
+      flex: 1,
+      backgroundColor: theme.colors.elevation.level2,
+      borderRadius: theme.roundness * 1.5,
+      padding: 12,
+      gap: 4,
+    },
+    historySummaryValue: {
+      color: theme.colors.onSurface,
     },
     historyList: {
       gap: 10,
