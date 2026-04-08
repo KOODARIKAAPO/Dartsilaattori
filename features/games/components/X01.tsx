@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { Surface, useTheme } from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
@@ -8,14 +8,14 @@ import { useX01Stats } from "../hooks/useX01Stats";
 import { useX01MatchAverages } from "../hooks/useX01MatchAverages";
 import { useX01MatchState } from "../hooks/useX01MatchState";
 import { useX01TurnInput } from "../hooks/useX01TurnInput";
+import { useX01MatchAggregates } from "../hooks/useX01MatchAggregates";
+import { useX01MatchPersistence } from "../hooks/useX01MatchPersistence";
 import DartsKeyboard from "./Dartskeyboard";
 import X01BustPrompt from "./X01BustPrompt";
 import X01DoubleAttemptPrompt from "./X01DoubleAttemptPrompt";
 import X01HeaderCard from "./X01HeaderCard";
 import X01ScoreCards from "./X01ScoreCards";
 import type { X01Variant } from "../../../types/X01Types";
-import { auth } from "../../../firebase/Auth";
-import { addGameForUser } from "../../../firebase/Firestore";
 
 //Pää pelikomponentti. X01 ohjauskeskus. Pelkkä UI ja tilahallinta
 
@@ -28,16 +28,27 @@ interface GameScreenProps {
   startingScore: X01Variant;
   players: PlayerInput[];
   bestOf?: 1 | 3 | 5 | 7;
+  useSets?: boolean;
+  bestOfSets?: 1 | 3 | 5;
+  bestOfLegs?: 1 | 3 | 5 | 7;
 }
 
-export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProps) 
+export function GameScreen({
+  startingScore,
+  players,
+  bestOf = 1,
+  useSets = false,
+  bestOfSets = 3,
+  bestOfLegs = 5,
+}: GameScreenProps)
 {
+  // --- UI/theme/nav ---
   const theme = useTheme();
   const styles = createStyles(theme);
   const outlinedTextColor = theme.colors.onSurface;
   const navigation = useNavigation<any>();
 
-  // Tuodaan pelin tile ja logiikka useX01Game hookista
+  // --- Core game state (per leg) ---
   const {
     state,
     players: gamePlayers,
@@ -57,48 +68,40 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     players,
   });
 
+  // --- Per-leg averages across the match ---
   const { getPlayerAverage, getPlayerTotals, resetMatchAverages } =
     useX01MatchAverages({
       turns: state.turns,
       isFinished,
     });
 
+  // --- Match/set state on top of legs ---
   const mainPlayerId = players[0]?.id ?? null;
-  const [matchDoubleAttempts, setMatchDoubleAttempts] = useState<
-    Record<string, number>
-  >(() =>
-    players.reduce(
-      (acc, player) => ({ ...acc, [player.id]: 0 }),
-      {} as Record<string, number>
-    )
-  );
-  const lastAggregatedLegKey = useRef<string | null>(null);
-  const [matchTotals, setMatchTotals] = useState({
-    points: 0,
-    dartsThrown: 0,
-    highestCheckout: 0,
-  });
-  const lastAggregatedTotalsKey = useRef<string | null>(null);
-  const [matchSaving, setMatchSaving] = useState(false);
-  const [matchSaved, setMatchSaved] = useState(false);
 
   const {
     matchWins,
+    setWins,
+    legWins,
     matchWinnerId,
     isMatchFinished,
     currentLeg,
+    currentSet,
     pendingMatchWin,
+    pendingSetWin,
     handleNextLeg: advanceLeg,
     handleResetMatch: resetMatchState,
   } = useX01MatchState({
     players,
-    bestOf,
+    bestOfLegs: useSets ? bestOfLegs : bestOf,
+    bestOfSets: useSets ? bestOfSets : 1,
+    useSets,
     isFinished,
     winnerId,
     startNextLeg,
     resetMatch,
   });
 
+  // --- Stats prompts + per-leg summary for main player ---
   const {
     showStatsPrompt,
     dartsToCheckout,
@@ -123,6 +126,7 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     setDoubleAttempts,
   });
 
+  // --- Turn input handling (pending darts + preview score) ---
   const {
     pendingDarts,
     previewScore,
@@ -143,166 +147,42 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
       },
     });
 
-  const legAttempts = useMemo(() => {
-    if (!isFinished || state.turns.length === 0) {
-      return { key: null as string | null, attempts: {} as Record<string, number> };
-    }
-
-    const winningTurnKey = `${state.turns[state.turns.length - 1].timestamp}`;
-    const attempts: Record<string, number> = {};
-
-    for (const turn of state.turns) {
-      const value = turn.doubleAttempts;
-      if (value == null) continue;
-      attempts[turn.playerId] = (attempts[turn.playerId] ?? 0) + value;
-    }
-
-    return { key: winningTurnKey, attempts };
-  }, [isFinished, state.turns]);
-
-  const aggregateLegAttempts = useCallback(() => {
-    if (!legAttempts.key) return;
-    if (lastAggregatedLegKey.current === legAttempts.key) return;
-
-    setMatchDoubleAttempts((prev) => {
-      const next = { ...prev };
-      for (const [playerId, value] of Object.entries(legAttempts.attempts)) {
-        next[playerId] = (next[playerId] ?? 0) + value;
-      }
-      return next;
-    });
-
-    lastAggregatedLegKey.current = legAttempts.key;
-  }, [legAttempts]);
-
-  useEffect(() => {
-    if (!isFinished || !statsSummary) return;
-    const legKey =
-      state.turns.length > 0
-        ? `${state.turns[state.turns.length - 1].timestamp}`
-        : null;
-    if (!legKey) return;
-    if (lastAggregatedTotalsKey.current === legKey) return;
-
-    const mainWonLeg = winnerId === mainPlayerId;
-    if (mainWonLeg && isMatchFinished && !statsSaved) return;
-
-    setMatchTotals((prev) => ({
-      points: prev.points + statsSummary.totalPoints,
-      dartsThrown: prev.dartsThrown + statsSummary.totalDartsThrown,
-      highestCheckout: Math.max(prev.highestCheckout, statsSummary.checkout ?? 0),
-    }));
-    lastAggregatedTotalsKey.current = legKey;
-  }, [
+  // --- Aggregations across legs (attempts, totals, player stats) ---
+  const {
+    matchTotals,
+    effectiveAttempts,
+    playerStats,
+    aggregateLegAttempts,
+    resetAggregates,
+    isTotalsAggregated,
+  } = useX01MatchAggregates({
+    players,
+    gamePlayers,
     isFinished,
     isMatchFinished,
-    mainPlayerId,
-    statsSaved,
-    statsSummary,
-    state.turns,
     winnerId,
-  ]);
+    turns: state.turns,
+    matchWins,
+    getPlayerTotals,
+    statsSummary,
+    statsSaved,
+    mainPlayerId,
+  });
 
-  useEffect(() => {
-    if (!isMatchFinished) return;
-    if (matchSaved || matchSaving) return;
-    if (!mainPlayerId) return;
-    if (pendingDoubleTurn) return;
-
-    const effectiveAttempts: Record<string, number> = { ...matchDoubleAttempts };
-    if (
-      legAttempts.key &&
-      lastAggregatedLegKey.current !== legAttempts.key
-    ) {
-      for (const [playerId, value] of Object.entries(legAttempts.attempts)) {
-        effectiveAttempts[playerId] =
-          (effectiveAttempts[playerId] ?? 0) + value;
-      }
-    }
-
-    const legKey =
-      state.turns.length > 0
-        ? `${state.turns[state.turns.length - 1].timestamp}`
-        : null;
-    if (legKey && lastAggregatedTotalsKey.current !== legKey) return;
-
-    if (matchWinnerId === mainPlayerId && !statsSaved) return;
-
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-
-    const saveMatch = async () => {
-      try {
-        setMatchSaving(true);
-        await addGameForUser(uid, {
-          points: matchTotals.points,
-          dartsThrown: matchTotals.dartsThrown,
-          doublesAttempted: effectiveAttempts[mainPlayerId] ?? 0,
-          doublesHit: matchWins[mainPlayerId] ?? 0,
-          checkout: matchTotals.highestCheckout || null,
-        });
-        setMatchSaved(true);
-      } finally {
-        setMatchSaving(false);
-      }
-    };
-
-    void saveMatch();
-  }, [
+  // --- Match persistence (save once to Firestore) ---
+  const { resetMatchPersistence } = useX01MatchPersistence({
     isMatchFinished,
     mainPlayerId,
-    matchDoubleAttempts,
-    matchSaved,
-    matchSaving,
+    pendingDoubleTurn,
     matchTotals,
     matchWins,
     matchWinnerId,
-    pendingDoubleTurn,
-    state.turns,
     statsSaved,
-    legAttempts,
-  ]);
+    effectiveAttempts,
+    isTotalsAggregated,
+  });
 
-  const playerStats = useMemo(() => {
-    if (!isFinished && !isMatchFinished) return [];
-
-    const effectiveAttempts: Record<string, number> = { ...matchDoubleAttempts };
-    if (
-      legAttempts.key &&
-      lastAggregatedLegKey.current !== legAttempts.key
-    ) {
-      for (const [playerId, value] of Object.entries(legAttempts.attempts)) {
-        effectiveAttempts[playerId] =
-          (effectiveAttempts[playerId] ?? 0) + value;
-      }
-    }
-
-    return gamePlayers.map((player) => {
-      const { points, darts } = getPlayerTotals(player.id);
-      const average = darts > 0 ? (points / darts) * 3 : null;
-
-      const doublesAttempted = effectiveAttempts[player.id] ?? 0;
-      const doublesHit = matchWins[player.id] ?? 0;
-
-      return {
-        id: player.id,
-        name: player.name,
-        average,
-        dartsThrown: darts,
-        doublesAttempted,
-        doublesHit,
-      };
-    });
-  }, [
-    gamePlayers,
-    getPlayerTotals,
-    isFinished,
-    isMatchFinished,
-    legAttempts,
-    matchDoubleAttempts,
-    matchWins,
-  ]);
-
+  // --- Handlers ---
   const handleResetLeg = () => {
     // Nollaa legi ja keskeneräiset heitot
     if (isMatchFinished) return;
@@ -327,21 +207,8 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     resetMatchAverages();
     resetStatsTracking();
     resetPendingDarts();
-    setMatchDoubleAttempts(
-      players.reduce(
-        (acc, player) => ({ ...acc, [player.id]: 0 }),
-        {} as Record<string, number>
-      )
-    );
-    lastAggregatedLegKey.current = null;
-    setMatchTotals({
-      points: 0,
-      dartsThrown: 0,
-      highestCheckout: 0,
-    });
-    lastAggregatedTotalsKey.current = null;
-    setMatchSaving(false);
-    setMatchSaved(false);
+    resetAggregates();
+    resetMatchPersistence();
     resetMatchState();
   };
 
@@ -349,10 +216,12 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
     navigation.navigate("Home");
   };
 
+  // --- Derived values for UI ---
   const winner = gamePlayers.find((player) => player.id === winnerId) ?? null;
   const matchWinner =
     gamePlayers.find((player) => player.id === matchWinnerId) ?? null;
 
+  // --- UI ---
   return (
     <Surface style={styles.root} elevation={0}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -364,12 +233,16 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
           checkout={checkout}
           round={round}
           currentLeg={currentLeg}
-          bestOf={bestOf}
+          bestOfLegs={useSets ? bestOfLegs : bestOf}
+          currentSet={currentSet}
+          bestOfSets={useSets ? bestOfSets : 1}
+          useSets={useSets}
           isFinished={isFinished}
           isMatchFinished={isMatchFinished}
           winnerName={winner?.name}
           matchWinnerName={matchWinner?.name}
           pendingMatchWin={pendingMatchWin}
+          pendingSetWin={pendingSetWin}
           outlinedTextColor={outlinedTextColor}
           onNextLeg={handleNextLeg}
           onResetMatch={handleResetMatch}
@@ -393,6 +266,9 @@ export function GameScreen({startingScore, players, bestOf = 1 }: GameScreenProp
           players={gamePlayers}
           currentPlayerId={currentPlayer?.id ?? null}
           matchWins={matchWins}
+          setWins={setWins}
+          legWins={legWins}
+          useSets={useSets}
           previewScore={previewScore}
           getPlayerAverage={getPlayerAverage}
           isFinished={isFinished}

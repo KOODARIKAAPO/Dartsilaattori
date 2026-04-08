@@ -27,6 +27,14 @@ export default function SelectGameScreen() {
       >
         Checkout Warmup
       </Button>
+
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("Bobs27")}
+      >
+        Bob's 27
+      </Button>
       
       <Button
         mode="contained"

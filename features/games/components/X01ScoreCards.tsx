@@ -13,6 +13,9 @@ type Props = {
   players: PlayerCard[];
   currentPlayerId: string | null;
   matchWins: Record<string, number>;
+  setWins?: Record<string, number>;
+  legWins?: Record<string, number>;
+  useSets?: boolean;
   previewScore: (score: number) => number;
   getPlayerAverage: (playerId: string) => number;
   isFinished: boolean;
@@ -23,6 +26,9 @@ export default function X01ScoreCards({
   players,
   currentPlayerId,
   matchWins,
+  setWins,
+  legWins,
+  useSets,
   previewScore,
   getPlayerAverage,
   isFinished,
@@ -38,6 +44,8 @@ export default function X01ScoreCards({
         const isCurrent =
           currentPlayerId != null && currentPlayerId === player.id;
         const wins = matchWins[player.id] ?? 0;
+        const sets = setWins?.[player.id] ?? 0;
+        const legs = legWins?.[player.id] ?? 0;
 
         const displayScore = isCurrent
           ? previewScore(player.currentScore)
@@ -53,7 +61,7 @@ export default function X01ScoreCards({
               variant="titleSmall"
               style={[styles.scoreName, isCurrent && styles.scoreNameActive]}
             >
-              {player.name} • {wins}
+              {useSets ? `${player.name} • S ${sets} • L ${legs}` : `${player.name} • ${wins}`}
             </Text>
             <Text
               variant="headlineMedium"

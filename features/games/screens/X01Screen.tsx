@@ -10,6 +10,9 @@ export default function X01Screen() {
         startingScore: X01Variant;
         players: { id: string; name: string }[];
         bestOf: 1 | 3 | 5 | 7;
+        useSets?: boolean;
+        bestOfSets?: 1 | 3 | 5;
+        bestOfLegs?: 1 | 3 | 5 | 7;
       }
     | undefined;
 
@@ -19,12 +22,18 @@ export default function X01Screen() {
     { id: "p2", name: "Pelaaja 2" },
   ];
   const bestOf = params?.bestOf ?? 1;
+  const useSets = params?.useSets ?? false;
+  const bestOfSets = params?.bestOfSets ?? 3;
+  const bestOfLegs = params?.bestOfLegs ?? 5;
 
   return (
     <X01Game
       startingScore={startingScore}
       players={players}
       bestOf={bestOf}
+      useSets={useSets}
+      bestOfSets={bestOfSets}
+      bestOfLegs={bestOfLegs}
     />
   );
 }
