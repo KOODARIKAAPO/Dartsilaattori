@@ -16,6 +16,7 @@ import SelectGameScreen from "../features/games/screens/SelectGameScreen";
 import X01SetupScreen from "../features/games/screens/X01SetupScreen";
 import X01Screen from "../features/games/screens/X01Screen";
 import CheckoutWarmupScreen from "../features/games/screens/CheckoutWarmupScreen";
+import Bobs27Screen from "../features/games/screens/Bobs27Screen";
 import Cricket from "../features/games/components/Cricket";
 import CricketSetupScreen from "../features/games/screens/CricketSetupScreen";
 import SettingsScreen from "../features/settings/SettingsScreen";
@@ -112,6 +113,11 @@ function GamesStack() {
         name="CheckoutWarmup"
         component={CheckoutWarmupScreen}
         options={{ title: "CheckoutWarmup" }}
+      />
+      <Stack.Screen
+        name="Bobs27"
+        component={Bobs27Screen}
+        options={{ title: "Bob's 27" }}
       />
       <Stack.Screen
         name="Cricket"
@@ -250,6 +256,12 @@ export default function Navigation() {
           name="CheckoutWarmup"
           component={CheckoutWarmupScreen}
           options={{ title: "CheckoutWarmup" }}
+        />
+
+        <Stack.Screen
+          name="Bobs27"
+          component={Bobs27Screen}
+          options={{ title: "Bob's 27" }}
         />
 
         <Stack.Screen

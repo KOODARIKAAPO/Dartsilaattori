@@ -16,6 +16,7 @@ const STARTING_SCORE_OPTIONS: X01Variant[] = [
 ];
 
 const BEST_OF_OPTIONS = [1, 3, 5, 7] as const;
+const SET_BEST_OF_OPTIONS = [1, 3, 5] as const;
 
 export default function X01SetupScreen() {
   const theme = useTheme();
@@ -26,6 +27,11 @@ export default function X01SetupScreen() {
 
   const [startingScore, setStartingScore] = useState<X01Variant>(501);
   const [bestOf, setBestOf] = useState<(typeof BEST_OF_OPTIONS)[number]>(3);
+  const [useSets, setUseSets] = useState(false);
+  const [bestOfSets, setBestOfSets] =
+    useState<(typeof SET_BEST_OF_OPTIONS)[number]>(3);
+  const [bestOfLegs, setBestOfLegs] =
+    useState<(typeof BEST_OF_OPTIONS)[number]>(5);
   const [players, setPlayers] = useState<PlayerInput[]>([
     { id: "p1", name: "" },
     { id: "p2", name: "" },
@@ -77,7 +83,14 @@ export default function X01SetupScreen() {
 
   const handleStart = () => {
     if (!canStart) return;
-    navigation.navigate("X01", { startingScore, players, bestOf });
+    navigation.navigate("X01", {
+      startingScore,
+      players,
+      bestOf,
+      useSets,
+      bestOfSets,
+      bestOfLegs,
+    });
   };
 
   return (
@@ -149,23 +162,92 @@ export default function X01SetupScreen() {
 
         <Surface style={styles.card} elevation={1}>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            Best Of
+            Pelimuoto
           </Text>
 
           <View style={styles.optionRow}>
-            {BEST_OF_OPTIONS.map((value) => (
-              <Button
-                key={value}
-                mode={bestOf === value ? "contained" : "outlined"}
-                textColor={bestOf === value ? undefined : outlinedTextColor}
-                onPress={() => setBestOf(value)}
-                style={styles.optionButton}
-              >
-                {value}
-              </Button>
-            ))}
+            <Button
+              mode={useSets ? "outlined" : "contained"}
+              textColor={useSets ? outlinedTextColor : undefined}
+              onPress={() => setUseSets(false)}
+              style={styles.optionButton}
+            >
+              Legi-ottelu
+            </Button>
+            <Button
+              mode={useSets ? "contained" : "outlined"}
+              textColor={useSets ? undefined : outlinedTextColor}
+              onPress={() => setUseSets(true)}
+              style={styles.optionButton}
+            >
+              Setti-ottelu
+            </Button>
           </View>
         </Surface>
+
+        {!useSets ? (
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Best Of (legit)
+            </Text>
+
+            <View style={styles.optionRow}>
+              {BEST_OF_OPTIONS.map((value) => (
+                <Button
+                  key={value}
+                  mode={bestOf === value ? "contained" : "outlined"}
+                  textColor={bestOf === value ? undefined : outlinedTextColor}
+                  onPress={() => setBestOf(value)}
+                  style={styles.optionButton}
+                >
+                  {value}
+                </Button>
+              ))}
+            </View>
+          </Surface>
+        ) : (
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Best Of (setit)
+            </Text>
+
+            <View style={styles.optionRow}>
+              {SET_BEST_OF_OPTIONS.map((value) => (
+                <Button
+                  key={value}
+                  mode={bestOfSets === value ? "contained" : "outlined"}
+                  textColor={bestOfSets === value ? undefined : outlinedTextColor}
+                  onPress={() => setBestOfSets(value)}
+                  style={styles.optionButton}
+                >
+                  {value}
+                </Button>
+              ))}
+            </View>
+          </Surface>
+        )}
+
+        {useSets ? (
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Best Of (legit per setti)
+            </Text>
+
+            <View style={styles.optionRow}>
+              {BEST_OF_OPTIONS.map((value) => (
+                <Button
+                  key={value}
+                  mode={bestOfLegs === value ? "contained" : "outlined"}
+                  textColor={bestOfLegs === value ? undefined : outlinedTextColor}
+                  onPress={() => setBestOfLegs(value)}
+                  style={styles.optionButton}
+                >
+                  {value}
+                </Button>
+              ))}
+            </View>
+          </Surface>
+        ) : null}
 
         <Button
           mode="contained"

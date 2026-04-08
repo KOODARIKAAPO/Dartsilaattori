@@ -15,6 +15,8 @@ interface Props {
   showBull?: boolean;
   showMiss?: boolean;
   showReset?: boolean;
+  showMultipliers?: boolean;
+  lockedMultiplier?: Multiplier;
   inputPreview?: number[];
 }
 
@@ -32,6 +34,8 @@ export default function DartsKeyboard({
   showBull = true,
   showMiss = true,
   showReset = true,
+  showMultipliers = true,
+  lockedMultiplier,
   inputPreview,
 }: Props) {
   const isDisabled = Boolean(disabled);
@@ -54,10 +58,11 @@ export default function DartsKeyboard({
 
   const handlePress = (num: number) => {
     if (isDisabled) return;
-    const value = num * multiplier;
-    onThrow(num, multiplier);
+    const activeMultiplier = lockedMultiplier ?? multiplier;
+    const value = num * activeMultiplier;
+    onThrow(num, activeMultiplier);
     pushPreview(value);
-    setMultiplier(1);
+    if (!lockedMultiplier) setMultiplier(1);
   };
 
   const handleBull = (isInner: boolean) => {
@@ -69,7 +74,7 @@ export default function DartsKeyboard({
 
     onThrow(value, multi);
     pushPreview(value * multi);
-    setMultiplier(1);
+    if (!lockedMultiplier) setMultiplier(1);
   };
   const handleUndoPress = () => {
     if (isDisabled) return;
@@ -160,29 +165,33 @@ export default function DartsKeyboard({
 
       {/* ACTIONS */}
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={[
-            styles.actionButton,
-            multiplier === 2 && styles.activeDouble,
-            isDisabled && styles.buttonDisabled,
-          ]}
-          onPress={() => setMultiplier(2)}
-          disabled={isDisabled}
-        >
-          <Text style={styles.actionText}>DOUBLE</Text>
-        </TouchableOpacity>
+        {showMultipliers && (
+          <>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                multiplier === 2 && styles.activeDouble,
+                isDisabled && styles.buttonDisabled,
+              ]}
+              onPress={() => setMultiplier(2)}
+              disabled={isDisabled}
+            >
+              <Text style={styles.actionText}>DOUBLE</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.actionButton,
-            multiplier === 3 && styles.activeTriple,
-            isDisabled && styles.buttonDisabled,
-          ]}
-          onPress={() => setMultiplier(3)}
-          disabled={isDisabled}
-        >
-          <Text style={styles.actionText}>TRIPLE</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                multiplier === 3 && styles.activeTriple,
+                isDisabled && styles.buttonDisabled,
+              ]}
+              onPress={() => setMultiplier(3)}
+              disabled={isDisabled}
+            >
+              <Text style={styles.actionText}>TRIPLE</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         <TouchableOpacity
           style={[
@@ -196,17 +205,17 @@ export default function DartsKeyboard({
         </TouchableOpacity>
 
         {showReset && onReset && (
-         <TouchableOpacity
-           style={[
-             styles.actionButton,
-             isDisabled && styles.buttonDisabled,
-           ]}
-           onPress={handleResetPress}
-           disabled={isDisabled}
-         >
-          <Text style={styles.actionText}>RESET</Text>
-         </TouchableOpacity>
-      )}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              isDisabled && styles.buttonDisabled,
+            ]}
+            onPress={handleResetPress}
+            disabled={isDisabled}
+          >
+            <Text style={styles.actionText}>RESET</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
