@@ -48,7 +48,7 @@ export function GameScreen({
   const outlinedTextColor = theme.colors.onSurface;
   const navigation = useNavigation<any>();
 
-  // --- Core game state (per leg) ---
+  // --- Pelin tila (per leg) ---
   const {
     state,
     players: gamePlayers,
@@ -68,14 +68,14 @@ export function GameScreen({
     players,
   });
 
-  // --- Per-leg averages across the match ---
+  // --- Keskiarvo legeittäin ---
   const { getPlayerAverage, getPlayerTotals, resetMatchAverages } =
     useX01MatchAverages({
       turns: state.turns,
       isFinished,
     });
 
-  // --- Match/set state on top of legs ---
+  // --- Match/set state on top of legs  ---
   const mainPlayerId = players[0]?.id ?? null;
 
   const {
