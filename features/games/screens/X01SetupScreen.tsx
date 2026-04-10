@@ -5,6 +5,8 @@ import type { MD3Theme } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import type { X01Variant } from "../../../types/X01Types";
 import { auth, subscribeToAuthChanges } from "../../../firebase/Auth";
+import { FriendSelectionModal } from "../components/FriendSelectionModal";
+import type { User } from "../../friends/services/userService";
 
 type PlayerInput = {
   id: string;
@@ -36,6 +38,7 @@ export default function X01SetupScreen() {
     { id: "p1", name: "" },
     { id: "p2", name: "" },
   ]);
+  const [friendModalVisible, setFriendModalVisible] = useState(false);
 
   useEffect(() => {
     const applyUserName = (name?: string | null) => {
@@ -79,6 +82,12 @@ export default function X01SetupScreen() {
         player.id === id ? { ...player, name } : player
       )
     );
+  };
+
+  const handleSelectFriend = (friend: User) => {
+    const nextIndex = players.length + 1;
+    const id = `p${nextIdRef.current++}`;
+    setPlayers([...players, { id, name: friend.displayName }]);
   };
 
   const handleStart = () => {
@@ -129,13 +138,24 @@ export default function X01SetupScreen() {
             ))}
           </View>
 
-          <Button
-            mode="outlined"
-            textColor={outlinedTextColor}
-            onPress={handleAddPlayer}
-          >
-            Lisää vieras
-          </Button>
+          <View style={styles.buttonRow}>
+            <Button
+              mode="outlined"
+              textColor={outlinedTextColor}
+              onPress={handleAddPlayer}
+              style={styles.flexButton}
+            >
+              Lisää vieras
+            </Button>
+            <Button
+              mode="outlined"
+              textColor={outlinedTextColor}
+              onPress={() => setFriendModalVisible(true)}
+              style={styles.flexButton}
+            >
+              Lisää kaveri
+            </Button>
+          </View>
         </Surface>
 
         <Surface style={styles.card} elevation={1}>
@@ -258,6 +278,12 @@ export default function X01SetupScreen() {
           Aloita peli
         </Button>
       </ScrollView>
+
+      <FriendSelectionModal
+        visible={friendModalVisible}
+        onDismiss={() => setFriendModalVisible(false)}
+        onSelectFriend={handleSelectFriend}
+      />
     </Surface>
   );
 }
@@ -297,6 +323,13 @@ const createStyles = (theme: MD3Theme) =>
     },
     removeButton: {
       alignSelf: "center",
+    },
+    buttonRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    flexButton: {
+      flex: 1,
     },
     optionRow: {
       flexDirection: "row",
