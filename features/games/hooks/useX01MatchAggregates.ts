@@ -1,4 +1,4 @@
-// Aggregates match-level attempts, totals, and per-player stats for X01.
+// Statistiikan koostaminen X01 komponentista
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Player, ThrowTurn } from "../../../types/X01Types";
 

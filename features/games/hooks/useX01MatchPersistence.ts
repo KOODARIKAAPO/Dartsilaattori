@@ -1,4 +1,4 @@
-// Persists finished X01 matches to Firestore once totals are ready.
+// X01 pelit viedään firestoreen tämä hookin avulla. Tarkkailee pelin tilan ja tallentaa tiedot
 import { useEffect, useState } from "react";
 import { auth } from "../../../firebase/Auth";
 import { addGameForUser } from "../../../firebase/Firestore";
