@@ -23,6 +23,7 @@ export type RootStackParamList = {
     bestOfSets?: 1 | 3 | 5;
     bestOfLegs?: 1 | 3 | 5 | 7;
   };
+  AroundTheClock: undefined;
   Cricket: {
     players: string[];
     startingPlayer: number;
