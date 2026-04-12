@@ -35,6 +35,14 @@ export default function SelectGameScreen() {
       >
         Bob's 27
       </Button>
+
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("AroundTheClock")}
+      >
+        Around The Clock
+      </Button>
       
       <Button
         mode="contained"
