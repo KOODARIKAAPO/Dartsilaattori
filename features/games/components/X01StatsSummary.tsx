@@ -34,13 +34,15 @@ export default function X01StatsSummary({ visible, players }: Props) {
         Ottelun tilastot
       </Text>
       {players.map((player) => {
+        const doublesAttempted = player.doublesAttempted ?? null;
+        const doublesHit = player.doublesHit ?? null;
         const hasDoubles =
-          player.doublesAttempted != null &&
-          player.doublesHit != null &&
-          player.doublesAttempted >= 0;
+          doublesAttempted != null &&
+          doublesHit != null &&
+          doublesAttempted >= 0;
         const doublesPercent = hasDoubles
-          ? player.doublesAttempted > 0
-            ? ((player.doublesHit ?? 0) / player.doublesAttempted) * 100
+          ? doublesAttempted > 0
+            ? (doublesHit / doublesAttempted) * 100
             : 0
           : null;
 

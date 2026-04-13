@@ -14,6 +14,7 @@ export type RootStackParamList = {
   Stats: undefined;
   GameHistory: undefined;
   SelectGame: undefined;
+  Screen101: undefined;
   X01Setup: undefined;
   X01: {
     startingScore: X01Variant;

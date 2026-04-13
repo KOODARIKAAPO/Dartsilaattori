@@ -1,16 +1,22 @@
 import React, { useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from "react-native";
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useTheme } from "react-native-paper";
+import type { MD3Theme } from "react-native-paper";
 
-
-// kerroin tikkaukselle: single, double, triple
 type Multiplier = 1 | 2 | 3;
-// propsit DartsKeyboard-komponentille: callbackit tikkaheitoille, undo-toiminnolle ja reset-toiminnolle.
+
+type PreviewItem =
+  | number
+  | {
+      points: number;
+      label?: string;
+    };
+
 interface Props {
   onThrow: (value: number, multiplier: Multiplier) => void;
   onUndo: () => void;
   onReset?: () => void;
   disabled?: boolean;
-
   numbers?: number[];
   showBull?: boolean;
   showMiss?: boolean;
@@ -21,10 +27,20 @@ interface Props {
 }
 
 const { width } = Dimensions.get("window");
-
-// 6 nappia per rivi → responsiivinen koko
 const BUTTON_SIZE = width / 7 - 8;
-// DartsKeyboard-komponentti, joka renderöi numeronapit 1-20, bullseye-napit ja miss-napin, sekä action-napit double, triple, undo ja reset. se käyttää local statea pitämään kirjaa valitusta kertoimesta (single/double/triple) ja kutsuu propsina annettuja callbackeja tikkaheitoille ja muille toiminnoille.
+
+function getPreviewValue(item: PreviewItem) {
+  return typeof item === "number" ? item : item.points;
+}
+
+function getPreviewLabel(item: PreviewItem) {
+  if (typeof item === "number") {
+    return String(item);
+  }
+
+  return item.label ?? String(item.points);
+}
+
 export default function DartsKeyboard({
   onThrow,
   onUndo,
@@ -38,13 +54,19 @@ export default function DartsKeyboard({
   lockedMultiplier,
   inputPreview,
 }: Props) {
+  const theme = useTheme();
+  const styles = createStyles(theme);
   const isDisabled = Boolean(disabled);
   const [multiplier, setMultiplier] = useState<Multiplier>(1);
   const [localPreview, setLocalPreview] = useState<number[]>([]);
 
-  const preview = inputPreview ?? localPreview;
+  const preview: PreviewItem[] = inputPreview ?? localPreview;
   const previewTotal = useMemo(
-    () => preview.reduce((sum, value) => sum + value, 0),
+    () => preview.reduce<number>((sum, item) => sum + getPreviewValue(item), 0),
+    [preview]
+  );
+  const previewText = useMemo(
+    () => (preview.length > 0 ? preview.map(getPreviewLabel).join(" + ") : "-"),
     [preview]
   );
 
@@ -67,15 +89,14 @@ export default function DartsKeyboard({
 
   const handleBull = (isInner: boolean) => {
     if (isDisabled) return;
-    const value = isInner ? 25 : 25;
-
-    // inner bull = 50 → kerroin 2
+    const value = 25;
     const multi = isInner ? 2 : 1;
 
     onThrow(value, multi);
     pushPreview(value * multi);
     if (!lockedMultiplier) setMultiplier(1);
   };
+
   const handleUndoPress = () => {
     if (isDisabled) return;
     onUndo();
@@ -91,25 +112,20 @@ export default function DartsKeyboard({
       setLocalPreview([]);
     }
   };
-// renderöidään numeronapit, bullseye-napit ja miss-nappi, sekä action-napit. käytetään StyleSheetiä tyylittelyyn.
+
   return (
     <View style={styles.container}>
       <View style={styles.previewBox}>
         <Text style={styles.previewLabel}>Heitot</Text>
-        <Text style={styles.previewValue}>
-          {preview.length > 0 ? preview.join(" + ") : "—"}
-        </Text>
+        <Text style={styles.previewValue}>{previewText}</Text>
         <Text style={styles.previewTotal}>Yht: {previewTotal}</Text>
       </View>
-      {/* NUMEROT */}
+
       <View style={styles.grid}>
         {numbers.map((num) => (
           <TouchableOpacity
             key={num}
-            style={[
-              styles.numberButton,
-              isDisabled && styles.buttonDisabled,
-            ]}
+            style={[styles.numberButton, isDisabled && styles.buttonDisabled]}
             onPress={() => handlePress(num)}
             disabled={isDisabled}
           >
@@ -117,53 +133,45 @@ export default function DartsKeyboard({
           </TouchableOpacity>
         ))}
 
-        {/* OUTER BULL */}
         {showBull && (
-      <>
-        <TouchableOpacity
-         style={[
-           styles.numberButton,
-           styles.bullOuter,
-           isDisabled && styles.buttonDisabled,
-         ]}
-          onPress={() => handleBull(false)}
-          disabled={isDisabled}
-       >
-         <Text style={styles.buttonText}>25</Text>
-       </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={[
+                styles.numberButton,
+                styles.bullOuter,
+                isDisabled && styles.buttonDisabled,
+              ]}
+              onPress={() => handleBull(false)}
+              disabled={isDisabled}
+            >
+              <Text style={styles.buttonText}>25</Text>
+            </TouchableOpacity>
 
-       <TouchableOpacity
-         style={[
-           styles.numberButton,
-           styles.bullInner,
-           isDisabled && styles.buttonDisabled,
-         ]}
-         onPress={() => handleBull(true)}
-         disabled={isDisabled}
-       >
-         <Text style={styles.buttonText}>BULL</Text>
-       </TouchableOpacity>
-    </>
-    )}
+            <TouchableOpacity
+              style={[
+                styles.numberButton,
+                styles.bullInner,
+                isDisabled && styles.buttonDisabled,
+              ]}
+              onPress={() => handleBull(true)}
+              disabled={isDisabled}
+            >
+              <Text style={styles.buttonText}>BULL</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
-        {/* MISS */}
-{showMiss && (
-  <TouchableOpacity
-    style={[
-      styles.numberButton,
-      styles.miss,
-      isDisabled && styles.buttonDisabled,
-    ]}
-    onPress={() => handlePress(0)}
-    disabled={isDisabled}
-  >
-    <Text style={styles.buttonText}>MISS</Text>
-  </TouchableOpacity>
-)}
-
+        {showMiss && (
+          <TouchableOpacity
+            style={[styles.numberButton, styles.miss, isDisabled && styles.buttonDisabled]}
+            onPress={() => handlePress(0)}
+            disabled={isDisabled}
+          >
+            <Text style={styles.buttonText}>MISS</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* ACTIONS */}
       <View style={styles.actions}>
         {showMultipliers && (
           <>
@@ -194,10 +202,7 @@ export default function DartsKeyboard({
         )}
 
         <TouchableOpacity
-          style={[
-            styles.actionButton,
-            isDisabled && styles.buttonDisabled,
-          ]}
+          style={[styles.actionButton, isDisabled && styles.buttonDisabled]}
           onPress={handleUndoPress}
           disabled={isDisabled}
         >
@@ -221,107 +226,100 @@ export default function DartsKeyboard({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 10,
-  },
-  previewBox: {
-    alignSelf: "stretch",
-    backgroundColor: "#141414",
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#2a2a2a",
-  },
-  previewLabel: {
-    color: "#9c9c9c",
-    fontSize: 10,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  previewValue: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  previewTotal: {
-    color: "#9c9c9c",
-    fontSize: 10,
-    marginTop: 1,
-  },
-
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-  },
-
-  numberButton: {
-    width: BUTTON_SIZE,
-    height: BUTTON_SIZE,
-    margin: 4,
-    backgroundColor: "#1f1f1f",
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: BUTTON_SIZE / 2,
-    borderWidth: 1,
-    borderColor: "#333",
-  },
-
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-
-  bullOuter: {
-    backgroundColor: "#1b5fc2",
-    borderColor: "#2e75e8",
-  },
-
-  bullInner: {
-    backgroundColor: "#b71c1c",
-    borderColor: "#e53935",
-  },
-  miss: {
-  backgroundColor: "#3a3a3a",
-  borderColor: "#4a4a4a",
-},
-
-  actions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 15,
-    paddingHorizontal: 5,
-  },
-
-  actionButton: {
-    flex: 1,
-    marginHorizontal: 4,
-    paddingVertical: 14,
-    backgroundColor: "#2a2a2a",
-    borderRadius: 999,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#383838",
-  },
-
-  actionText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-
-  activeDouble: {
-    backgroundColor: "#43a047",
-  },
-
-  activeTriple: {
-    backgroundColor: "#e53935",
-  },
-});
+const createStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      paddingVertical: 10,
+      gap: 10,
+    },
+    previewBox: {
+      alignSelf: "stretch",
+      backgroundColor: theme.colors.surfaceVariant,
+      borderRadius: theme.roundness * 2,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    previewLabel: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 10,
+      textTransform: "uppercase",
+      letterSpacing: 1,
+    },
+    previewValue: {
+      color: theme.colors.onSurface,
+      fontSize: 14,
+      fontWeight: "600",
+      marginTop: 2,
+    },
+    previewTotal: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 10,
+      marginTop: 1,
+    },
+    grid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+    },
+    numberButton: {
+      width: BUTTON_SIZE,
+      height: BUTTON_SIZE,
+      margin: 4,
+      backgroundColor: theme.colors.elevation.level2,
+      justifyContent: "center",
+      alignItems: "center",
+      borderRadius: BUTTON_SIZE / 2,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    buttonText: {
+      color: theme.colors.onSurface,
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    bullOuter: {
+      backgroundColor: theme.colors.tertiaryContainer,
+      borderColor: theme.colors.tertiary,
+    },
+    bullInner: {
+      backgroundColor: theme.colors.secondaryContainer,
+      borderColor: theme.colors.secondary,
+    },
+    miss: {
+      backgroundColor: theme.colors.surfaceDisabled,
+      borderColor: theme.colors.outline,
+    },
+    actions: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: 6,
+      paddingHorizontal: 5,
+      gap: 8,
+    },
+    actionButton: {
+      flex: 1,
+      paddingVertical: 14,
+      backgroundColor: theme.colors.elevation.level2,
+      borderRadius: 999,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    actionText: {
+      color: theme.colors.onSurface,
+      fontWeight: "700",
+    },
+    buttonDisabled: {
+      opacity: 0.4,
+    },
+    activeDouble: {
+      backgroundColor: theme.colors.primaryContainer,
+      borderColor: theme.colors.primary,
+    },
+    activeTriple: {
+      backgroundColor: theme.colors.secondaryContainer,
+      borderColor: theme.colors.secondary,
+    },
+  });
