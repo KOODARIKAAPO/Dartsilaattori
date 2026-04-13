@@ -12,6 +12,7 @@ service cloud.firestore {
     // käyttäjäprofiili
     match /users/{uid} {
       allow read, write: if isOwner(uid);
+      allow read: if isSignedIn();
 
       // käyttäjän pelit
       match /games/{gameId} {
@@ -27,6 +28,15 @@ service cloud.firestore {
     // käyttäjän tilastot
     match /stats/{uid} {
       allow read, write: if isOwner(uid);
+    }
+
+    // käyttäjän kaverit
+    match /friends/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /list/{friendId} {
+        allow read, write: if isOwner(uid) || isOwner(friendId);
+      }
     }
   }
 }

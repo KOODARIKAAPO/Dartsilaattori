@@ -5,6 +5,8 @@ import type { MD3Theme } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import type { X01Variant } from "../../../types/X01Types";
 import { auth, subscribeToAuthChanges } from "../../../firebase/Auth";
+import { FriendSelectionModal } from "../components/FriendSelectionModal";
+import type { User } from "../../friends/services/userService";
 
 type PlayerInput = {
   id: string;
@@ -16,6 +18,7 @@ const STARTING_SCORE_OPTIONS: X01Variant[] = [
 ];
 
 const BEST_OF_OPTIONS = [1, 3, 5, 7] as const;
+const SET_BEST_OF_OPTIONS = [1, 3, 5] as const;
 
 export default function X01SetupScreen() {
   const theme = useTheme();
@@ -26,10 +29,16 @@ export default function X01SetupScreen() {
 
   const [startingScore, setStartingScore] = useState<X01Variant>(501);
   const [bestOf, setBestOf] = useState<(typeof BEST_OF_OPTIONS)[number]>(3);
+  const [useSets, setUseSets] = useState(false);
+  const [bestOfSets, setBestOfSets] =
+    useState<(typeof SET_BEST_OF_OPTIONS)[number]>(3);
+  const [bestOfLegs, setBestOfLegs] =
+    useState<(typeof BEST_OF_OPTIONS)[number]>(5);
   const [players, setPlayers] = useState<PlayerInput[]>([
     { id: "p1", name: "" },
     { id: "p2", name: "" },
   ]);
+  const [friendModalVisible, setFriendModalVisible] = useState(false);
 
   useEffect(() => {
     const applyUserName = (name?: string | null) => {
@@ -75,9 +84,22 @@ export default function X01SetupScreen() {
     );
   };
 
+  const handleSelectFriend = (friend: User) => {
+    const nextIndex = players.length + 1;
+    const id = `p${nextIdRef.current++}`;
+    setPlayers([...players, { id, name: friend.displayName }]);
+  };
+
   const handleStart = () => {
     if (!canStart) return;
-    navigation.navigate("X01", { startingScore, players, bestOf });
+    navigation.navigate("X01", {
+      startingScore,
+      players,
+      bestOf,
+      useSets,
+      bestOfSets,
+      bestOfLegs,
+    });
   };
 
   return (
@@ -116,13 +138,24 @@ export default function X01SetupScreen() {
             ))}
           </View>
 
-          <Button
-            mode="outlined"
-            textColor={outlinedTextColor}
-            onPress={handleAddPlayer}
-          >
-            Lisää vieras
-          </Button>
+          <View style={styles.buttonRow}>
+            <Button
+              mode="outlined"
+              textColor={outlinedTextColor}
+              onPress={handleAddPlayer}
+              style={styles.flexButton}
+            >
+              Lisää vieras
+            </Button>
+            <Button
+              mode="outlined"
+              textColor={outlinedTextColor}
+              onPress={() => setFriendModalVisible(true)}
+              style={styles.flexButton}
+            >
+              Lisää kaveri
+            </Button>
+          </View>
         </Surface>
 
         <Surface style={styles.card} elevation={1}>
@@ -149,23 +182,92 @@ export default function X01SetupScreen() {
 
         <Surface style={styles.card} elevation={1}>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            Best Of
+            Pelimuoto
           </Text>
 
           <View style={styles.optionRow}>
-            {BEST_OF_OPTIONS.map((value) => (
-              <Button
-                key={value}
-                mode={bestOf === value ? "contained" : "outlined"}
-                textColor={bestOf === value ? undefined : outlinedTextColor}
-                onPress={() => setBestOf(value)}
-                style={styles.optionButton}
-              >
-                {value}
-              </Button>
-            ))}
+            <Button
+              mode={useSets ? "outlined" : "contained"}
+              textColor={useSets ? outlinedTextColor : undefined}
+              onPress={() => setUseSets(false)}
+              style={styles.optionButton}
+            >
+              Legi-ottelu
+            </Button>
+            <Button
+              mode={useSets ? "contained" : "outlined"}
+              textColor={useSets ? undefined : outlinedTextColor}
+              onPress={() => setUseSets(true)}
+              style={styles.optionButton}
+            >
+              Setti-ottelu
+            </Button>
           </View>
         </Surface>
+
+        {!useSets ? (
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Best Of (legit)
+            </Text>
+
+            <View style={styles.optionRow}>
+              {BEST_OF_OPTIONS.map((value) => (
+                <Button
+                  key={value}
+                  mode={bestOf === value ? "contained" : "outlined"}
+                  textColor={bestOf === value ? undefined : outlinedTextColor}
+                  onPress={() => setBestOf(value)}
+                  style={styles.optionButton}
+                >
+                  {value}
+                </Button>
+              ))}
+            </View>
+          </Surface>
+        ) : (
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Best Of (setit)
+            </Text>
+
+            <View style={styles.optionRow}>
+              {SET_BEST_OF_OPTIONS.map((value) => (
+                <Button
+                  key={value}
+                  mode={bestOfSets === value ? "contained" : "outlined"}
+                  textColor={bestOfSets === value ? undefined : outlinedTextColor}
+                  onPress={() => setBestOfSets(value)}
+                  style={styles.optionButton}
+                >
+                  {value}
+                </Button>
+              ))}
+            </View>
+          </Surface>
+        )}
+
+        {useSets ? (
+          <Surface style={styles.card} elevation={1}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Best Of (legit per setti)
+            </Text>
+
+            <View style={styles.optionRow}>
+              {BEST_OF_OPTIONS.map((value) => (
+                <Button
+                  key={value}
+                  mode={bestOfLegs === value ? "contained" : "outlined"}
+                  textColor={bestOfLegs === value ? undefined : outlinedTextColor}
+                  onPress={() => setBestOfLegs(value)}
+                  style={styles.optionButton}
+                >
+                  {value}
+                </Button>
+              ))}
+            </View>
+          </Surface>
+        ) : null}
 
         <Button
           mode="contained"
@@ -176,6 +278,12 @@ export default function X01SetupScreen() {
           Aloita peli
         </Button>
       </ScrollView>
+
+      <FriendSelectionModal
+        visible={friendModalVisible}
+        onDismiss={() => setFriendModalVisible(false)}
+        onSelectFriend={handleSelectFriend}
+      />
     </Surface>
   );
 }
@@ -215,6 +323,13 @@ const createStyles = (theme: MD3Theme) =>
     },
     removeButton: {
       alignSelf: "center",
+    },
+    buttonRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    flexButton: {
+      flex: 1,
     },
     optionRow: {
       flexDirection: "row",

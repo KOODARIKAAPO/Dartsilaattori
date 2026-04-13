@@ -11,8 +11,10 @@ import {
   query,
   orderBy,
   limit,
+  where,
   serverTimestamp,
   onSnapshot,
+  Timestamp,
 } from 'firebase/firestore';
 
 export const db = getFirestore(app);
@@ -246,6 +248,36 @@ export const subscribeToRecentGames = (
 ) => {
   const gamesRef = collection(db, 'users', uid, 'games');
   const q = query(gamesRef, orderBy('createdAt', 'desc'), limit(max));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const games = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as GameInput),
+      }));
+      onNext(games);
+    },
+    (error) => {
+      if (onError) onError(error);
+    }
+  );
+};
+
+// reaaliaikainen kuuntelu peleistä tietystä ajankohdasta lähtien
+export const subscribeToGamesSince = (
+  uid: string,
+  days: number,
+  onNext: (games: Array<{ id: string } & GameInput>) => void,
+  onError?: (error: unknown) => void
+) => {
+  const gamesRef = collection(db, 'users', uid, 'games');
+  const since = new Date();
+  since.setDate(since.getDate() - Math.max(1, days));
+  const q = query(
+    gamesRef,
+    where('createdAt', '>=', Timestamp.fromDate(since)),
+    orderBy('createdAt', 'desc')
+  );
   return onSnapshot(
     q,
     (snapshot) => {

@@ -35,12 +35,16 @@ type Props = {
   checkout: string[] | null;
   round: number;
   currentLeg: number;
-  bestOf: number;
+  bestOfLegs: number;
+  currentSet: number;
+  bestOfSets: number;
+  useSets: boolean;
   isFinished: boolean;
   isMatchFinished: boolean;
   winnerName?: string | null;
   matchWinnerName?: string | null;
   pendingMatchWin: boolean;
+  pendingSetWin: boolean;
   outlinedTextColor: string;
   onNextLeg: () => void;
   onResetMatch: () => void;
@@ -57,12 +61,16 @@ export default function X01HeaderCard({
   checkout,
   round,
   currentLeg,
-  bestOf,
+  bestOfLegs,
+  currentSet,
+  bestOfSets,
+  useSets,
   isFinished,
   isMatchFinished,
   winnerName,
   matchWinnerName,
   pendingMatchWin,
+  pendingSetWin,
   outlinedTextColor,
   onNextLeg,
   onResetMatch,
@@ -93,7 +101,9 @@ export default function X01HeaderCard({
             </Text>
           ) : null}
           <Text variant="bodySmall" style={styles.roundMeta}>
-            Kierros {round} • Legi {currentLeg} / {bestOf}
+            Kierros {round}
+            {useSets ? ` • Setti ${currentSet} / ${bestOfSets}` : ""}
+            {` • Legi ${currentLeg} / ${bestOfLegs}`}
           </Text>
         </>
       ) : null}
@@ -101,7 +111,7 @@ export default function X01HeaderCard({
       {isFinished && !isMatchFinished ? (
         <>
           <Text variant="titleMedium" style={styles.finished}>
-            Legi päättyi!
+            {useSets && pendingSetWin ? "Setti päättyi!" : "Legi päättyi!"}
           </Text>
           {winnerName ? (
             <Text variant="headlineSmall" style={styles.winnerText}>
@@ -109,13 +119,17 @@ export default function X01HeaderCard({
             </Text>
           ) : null}
           <X01StatsPrompt {...statsPrompt} />
-          {bestOf > 1 ? (
+          {useSets || bestOfLegs > 1 ? (
             <Button
               mode="contained"
               onPress={onNextLeg}
               style={styles.nextLegButton}
             >
-              {pendingMatchWin ? "Päätä ottelu" : "Seuraava legi"}
+              {pendingMatchWin
+                ? "Päätä ottelu"
+                : useSets && pendingSetWin
+                  ? "Päätä setti"
+                  : "Seuraava legi"}
             </Button>
           ) : null}
         </>
