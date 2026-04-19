@@ -15,6 +15,13 @@ export default function SelectGameScreen() {
       <Button
         mode="contained"
         style={styles.button}
+        onPress={() => navigation.navigate("Screen101")}
+      >
+        101 
+      </Button>
+      <Button
+        mode="contained"
+        style={styles.button}
         onPress={() => navigation.navigate("X01Setup")}
       >
         X01
@@ -34,6 +41,14 @@ export default function SelectGameScreen() {
         onPress={() => navigation.navigate("Bobs27")}
       >
         Bob's 27
+      </Button>
+
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("AroundTheClock")}
+      >
+        Around The Clock
       </Button>
       
       <Button

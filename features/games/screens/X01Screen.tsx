@@ -1,3 +1,5 @@
+//Vastaanottaa kaikki parametrit pelistä ja vie ne x01.tsx komponenttiin, jossa pelilogiikka 'toteutuu'
+
 import React from "react";
 import { useRoute } from "@react-navigation/native";
 import { GameScreen as X01Game } from "../components/X01";
