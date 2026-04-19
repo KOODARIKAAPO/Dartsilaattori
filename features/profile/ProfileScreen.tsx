@@ -9,8 +9,8 @@ import {
   Image,
   Modal,
   AppState,
+  Alert
 } from "react-native";
-
 import {
   getAuth,
   EmailAuthProvider,
@@ -25,6 +25,10 @@ import {
   UserProfile,
   updateUserProfileDisplayName,
 } from "../../firebase/Firestore";
+import * as ImagePicker from "expo-image-picker";
+import { updateProfile } from "firebase/auth";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 
 export default function ProfileScreen() {
   const auth = getAuth();
@@ -32,19 +36,14 @@ export default function ProfileScreen() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
-
   const [error, setError] = useState<string | null>(null);
-
   const [showReauthModal, setShowReauthModal] = useState(false);
   const [password, setPassword] = useState("");
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
-
 
   useEffect(() => {
     if (!user) {
@@ -102,36 +101,34 @@ export default function ProfileScreen() {
     return () => sub.remove();
   }, [user]);
 
-  // Profiilin tallennus
   const handleSave = async () => {
-  if (!user) return;
+    if (!user) return;
 
-  try {
-    setSaving(true);
+    try {
+      setSaving(true);
 
-    if (editName !== profile?.displayName) {
-      setProfile((prev) =>
-        prev ? { ...prev, displayName: editName } : prev
-      );
+      if (editName !== profile?.displayName) {
+        setProfile((prev) =>
+          prev ? { ...prev, displayName: editName } : prev
+        );
 
-      await updateUserProfileDisplayName(user.uid, editName);
+        await updateUserProfileDisplayName(user.uid, editName);
+      }
+
+      if (editEmail !== user.email) {
+        setPendingEmail(editEmail);
+        setShowReauthModal(true);
+        return;
+      }
+
+      alert("Profiili päivitetty");
+    } catch (err) {
+      console.error(err);
+      alert("Virhe tallennuksessa");
+    } finally {
+      setSaving(false);
     }
-
-    if (editEmail !== user.email) {
-      setPendingEmail(editEmail);
-      setShowReauthModal(true);
-      return;
-    }
-
-    alert("Profiili päivitetty");
-  } catch (err) {
-    console.error(err);
-    alert("Virhe tallennuksessa");
-  } finally {
-    setSaving(false);
-  }
-};
-
+  };
 
   const handleReauthenticateAndUpdate = async () => {
     if (!user || !user.email || !pendingEmail) return;
@@ -148,9 +145,7 @@ export default function ProfileScreen() {
 
       await verifyBeforeUpdateEmail(user, pendingEmail);
 
-      alert(
-        "📩 Vahvistuslinkki lähetetty!"
-      );
+      alert("📩 Vahvistuslinkki lähetetty!");
 
       setShowReauthModal(false);
       setPassword("");
@@ -185,11 +180,116 @@ export default function ProfileScreen() {
     );
   }
 
+  const showImageOptions = () => {
+  Alert.alert("Vaihda profiilikuva", "Valitse kuvan lähde", [
+    { text: "Kamera", onPress: takePhoto },
+    { text: "Galleria", onPress: pickImage },
+    { text: "Peruuta", style: "cancel" },
+  ]);
+};
+
+const pickImage = async () => {
+  if (!user) return;
+
+  const permission =
+    await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+  if (!permission.granted) {
+    alert("Galleria lupa vaaditaan");
+    return;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect: [1, 1], 
+    quality: 0.7,
+  });
+
+  if (!result.canceled) {
+    uploadImage(result.assets[0].uri);
+  }
+};
+
+const takePhoto = async () => {
+  if (!user) return;
+
+  const permission =
+    await ImagePicker.requestCameraPermissionsAsync();
+
+  if (!permission.granted) {
+    alert("Kamera lupa vaaditaan");
+    return;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.7,
+  });
+
+  if (!result.canceled) {
+    uploadImage(result.assets[0].uri);
+  }
+};
+
+const uploadImage = async (uri: string) => {
+  if (!user) return;
+
+  try {
+    setSaving(true);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = () => resolve(xhr.response);
+      xhr.onerror = () => reject(new TypeError("Network request failed"));
+      xhr.responseType = "blob";
+      xhr.open("GET", uri, true);
+      xhr.send(null);
+    });
+
+    const storage = getStorage();
+    const storageRef = ref(storage, `avatars/${user.uid}.jpg`);
+
+    await uploadBytes(storageRef, blob);
+
+    const downloadURL = await getDownloadURL(storageRef);
+
+    await updateProfile(user, {
+      photoURL: downloadURL,
+    });
+
+    await user.reload();
+
+    setProfile((prev) => (prev ? { ...prev } : prev));
+
+    alert("Profiilikuva päivitetty!");
+  } catch (err) {
+    console.error(err);
+    alert("Kuvan lataus epäonnistui");
+  } finally {
+    setSaving(false);
+  }
+};
+
   return (
     <View style={styles.container}>
-      <Text style={styles.name}>
-        {profile?.displayName ?? "Nimetön käyttäjä"}
-      </Text>
+      <View style={styles.profileHeader}>
+        {/* Profiilikuva */}
+        <TouchableOpacity onPress={showImageOptions}>
+      <Image
+     source={
+      user?.photoURL
+        ? { uri: user.photoURL }
+        : require("../../assets/default-avatar.png")
+    }
+    style={styles.avatar}
+  />
+</TouchableOpacity>
+        <Text style={styles.name}>
+          {profile?.displayName ?? "Nimetön käyttäjä"}
+        </Text>
+      </View>
 
       <Text style={styles.stat}>
         Kolmen tikan keskiarvo:{" "}
@@ -197,11 +297,6 @@ export default function ProfileScreen() {
       </Text>
 
       <View style={styles.card}>
-        <Image
-          source={{ uri: "https://via.placeholder.com/100" }}
-          style={styles.avatar}
-        />
-
         <TextInput
           style={styles.input}
           value={editName}
@@ -231,7 +326,6 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-    
       <Modal visible={showReauthModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -275,18 +369,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#121212",
   },
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30, 
+    marginRight: 15,
+  },
+  name: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  stat: {
+    fontSize: 18,
+    color: "#ddd",
+    marginBottom: 20,
+  },
   card: {
     backgroundColor: "#1e1e1e",
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignSelf: "center",
-    marginBottom: 15,
   },
   input: {
     backgroundColor: "#2a2a2a",
@@ -304,17 +412,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
-  },
-  name: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 10,
-  },
-  stat: {
-    fontSize: 18,
-    color: "#ddd",
-    marginBottom: 20,
   },
   loadingText: {
     color: "#fff",
