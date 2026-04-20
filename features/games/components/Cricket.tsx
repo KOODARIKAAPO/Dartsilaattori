@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, Alert } from "react-native";
 import Dartskeyboard from "./Dartskeyboard";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { useAppTheme } from "../../../ui/ThemeContext";
+import type { MD3Theme } from "react-native-paper";
 
 type Multiplier = 1 | 2 | 3;
 type CricketNumber = 15 | 16 | 17 | 18 | 19 | 20 | 25;
@@ -29,26 +31,21 @@ function createPlayer(name: string): Player {
     },
   };
 }
-
-
-
-
 export default function Cricket() {
+  const { theme } = useAppTheme();
+  const styles = createStyles(theme);
+  const route = useRoute<any>();
+  const navigation = useNavigation<any>();
 
-    const route = useRoute<any>();
-    const navigation = useNavigation<any>();
+  const initialPlayers = route.params?.players || ["P1", "P2"];
 
-const initialPlayers =
-  route.params?.players || ["P1", "P2"];
-
-const startingPlayer = route.params?.startingPlayer || 0
-
+  const startingPlayer = route.params?.startingPlayer || 0;
 
   const [players, setPlayers] = useState<Player[]>(
-  initialPlayers.map((name: string) => createPlayer(name))
-);
+    initialPlayers.map((name: string) => createPlayer(name))
+  );
 
-    const [currentPlayer, setCurrentPlayer] = useState(startingPlayer);
+  const [currentPlayer, setCurrentPlayer] = useState(startingPlayer);
 
   const [throwsLeft, setThrowsLeft] = useState(3);
   const [history, setHistory] = useState<any[]>([]);
@@ -71,12 +68,82 @@ const startingPlayer = route.params?.startingPlayer || 0
     return hasHighestScore;
   };
 
-const handleThrow = (value: number, multiplier: Multiplier) => {
-  // Salli MISS (0) tai normaalit Cricket-numerot
-  if (value !== 0 && !CRICKET_NUMBERS.includes(value as CricketNumber)) return;
+  const handleThrow = (value: number, multiplier: Multiplier) => {
+    // Salli MISS (0) tai normaalit Cricket-numerot
+    if (value !== 0 && !CRICKET_NUMBERS.includes(value as CricketNumber)) return;
 
-  if (value === 0) {
-    // MISS → vähennä heitto ja tallenna history
+    if (value === 0) {
+      // MISS -> vahenna heitto ja tallenna history
+      setThrowsLeft((t) => {
+        if (t - 1 === 0) {
+          setCurrentPlayer((p: number) => getNextPlayer(p));
+          return 3;
+        }
+        return t - 1;
+      });
+
+      setHistory((h) => [
+        ...h,
+        {
+          players: [...players],
+          currentPlayer,
+          throwsLeft,
+        },
+      ]);
+      return;
+    }
+
+    setPlayers((prev) => {
+      const newPlayers = [...prev];
+      const player = { ...newPlayers[currentPlayer] };
+
+      let hits = multiplier;
+      let marks = player.marks[value as CricketNumber];
+      let scoredPoints = 0;
+
+      while (hits > 0) {
+        if (marks < 3) {
+          marks++;
+        } else {
+          const someoneOpen = newPlayers.some(
+            (p, i) => i !== currentPlayer && p.marks[value as CricketNumber] < 3
+          );
+          if (someoneOpen) scoredPoints += value;
+        }
+        hits--;
+      }
+
+      player.marks = { ...player.marks, [value]: marks };
+      player.score += scoredPoints;
+      newPlayers[currentPlayer] = player;
+
+      setHistory((h) => [
+        ...h,
+        {
+          players: prev,
+          currentPlayer,
+          throwsLeft,
+        },
+      ]);
+
+      if (checkWin(newPlayers)) {
+        Alert.alert(
+          "Peli ohi",
+          `${player.name} voitti!`,
+          [
+            {
+              text: "OK",
+              onPress: () => navigation.navigate("SelectGame"),
+            },
+          ],
+          { cancelable: false }
+        );
+      }
+
+      return newPlayers;
+    });
+
+    // HEITTOJEN HALLINTA
     setThrowsLeft((t) => {
       if (t - 1 === 0) {
         setCurrentPlayer((p: number) => getNextPlayer(p));
@@ -84,77 +151,7 @@ const handleThrow = (value: number, multiplier: Multiplier) => {
       }
       return t - 1;
     });
-
-    setHistory((h) => [
-      ...h,
-      {
-        players: [...players], 
-        currentPlayer,
-        throwsLeft,
-      },
-    ]);
-    return; 
-  }
-
-  setPlayers((prev) => {
-    const newPlayers = [...prev];
-    const player = { ...newPlayers[currentPlayer] };
-
-    let hits = multiplier;
-    let marks = player.marks[value as CricketNumber];
-    let scoredPoints = 0;
-
-    while (hits > 0) {
-      if (marks < 3) {
-        marks++;
-      } else {
-        const someoneOpen = newPlayers.some(
-          (p, i) => i !== currentPlayer && p.marks[value as CricketNumber] < 3
-        );
-        if (someoneOpen) scoredPoints += value;
-      }
-      hits--;
-    }
-
-    player.marks = { ...player.marks, [value]: marks };
-    player.score += scoredPoints;
-    newPlayers[currentPlayer] = player;
-
-    setHistory((h) => [
-      ...h,
-      {
-        players: prev,
-        currentPlayer,
-        throwsLeft,
-      },
-    ]);
-
-    if (checkWin(newPlayers)) {
-      Alert.alert(
-  "Peli ohi",
-  `${player.name} voitti!`,
-  [
-    {
-      text: "OK",
-      onPress: () => navigation.navigate("SelectGame"), 
-    },
-  ],
-  { cancelable: false }
-);
-    }
-
-    return newPlayers;
-  });
-
-  // HEITTOJEN HALLINTA
-  setThrowsLeft((t) => {
-    if (t - 1 === 0) {
-      setCurrentPlayer((p: number) => getNextPlayer(p));
-      return 3;
-    }
-    return t - 1;
-  });
-};
+  };
 
   const handleUndo = () => {
     setHistory((prev) => {
@@ -171,29 +168,31 @@ const handleThrow = (value: number, multiplier: Multiplier) => {
 
   return (
     <View style={styles.container}>
-      {/* INFO */}
-      <Text style={styles.turn}>
-        {players[currentPlayer].name} vuoro ({throwsLeft} tikkaa jäljellä)
-      </Text>
+      <View style={styles.turnBanner}>
+        <Text style={styles.turn}>
+          {players[currentPlayer].name} vuoro ({throwsLeft} tikkaa jäljellä)
+        </Text>
+      </View>
 
-      {/* SCOREBOARD */}
       {players.map((p, i) => (
-        <View key={i} style={styles.player}>
+        <View
+          key={i}
+          style={[styles.player, i === currentPlayer && styles.playerActive]}
+        >
           <Text style={styles.name}>
-            {p.name} {i === currentPlayer ? "🎯" : ""}
+            {p.name} {i === currentPlayer ? "•" : ""}
           </Text>
 
           <Text style={styles.score}>Score: {p.score}</Text>
 
           {CRICKET_NUMBERS.map((num) => (
-            <Text key={num}>
+            <Text key={num} style={styles.markText}>
               {num === 25 ? "BULL" : num}: {"●".repeat(p.marks[num])}
             </Text>
           ))}
         </View>
       ))}
 
-      {/* KEYBOARD */}
       <Dartskeyboard
         onThrow={handleThrow}
         onUndo={handleUndo}
@@ -206,29 +205,52 @@ const handleThrow = (value: number, multiplier: Multiplier) => {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-
-  turn: {
-    fontSize: 18,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-
-  player: {
-    marginBottom: 20,
-  },
-
-  name: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-
-  score: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-});
+const createStyles = (theme: MD3Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 20,
+      backgroundColor: theme.colors.background,
+    },
+    turnBanner: {
+      marginBottom: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+      backgroundColor: theme.colors.primaryContainer,
+    },
+    turn: {
+      fontSize: 18,
+      textAlign: "center",
+      color: theme.colors.onPrimaryContainer,
+      fontWeight: "600",
+    },
+    player: {
+      marginBottom: 16,
+      padding: 14,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+    },
+    playerActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    name: {
+      fontSize: 20,
+      fontWeight: "bold",
+      color: theme.colors.onSurface,
+      marginBottom: 6,
+    },
+    score: {
+      fontSize: 16,
+      marginBottom: 8,
+      color: theme.colors.primary,
+      fontWeight: "600",
+    },
+    markText: {
+      color: theme.colors.onSurfaceVariant,
+      marginBottom: 2,
+    },
+  });
