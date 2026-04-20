@@ -27,6 +27,7 @@ type PlayerInput = {
 interface GameScreenProps {
   startingScore: X01Variant;
   players: PlayerInput[];
+  mainPlayerId?: string | null;
   bestOf?: 1 | 3 | 5 | 7;
   useSets?: boolean;
   bestOfSets?: 1 | 3 | 5;
@@ -36,6 +37,7 @@ interface GameScreenProps {
 export function GameScreen({
   startingScore,
   players,
+  mainPlayerId: providedMainPlayerId,
   bestOf = 1,
   useSets = false,
   bestOfSets = 3,
@@ -76,7 +78,7 @@ export function GameScreen({
     });
 
   // --- Match/set state on top of legs  ---
-  const mainPlayerId = players[0]?.id ?? null;
+  const mainPlayerId = providedMainPlayerId ?? players[0]?.id ?? null;
 
   const {
     matchWins,

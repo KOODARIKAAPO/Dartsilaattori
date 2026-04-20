@@ -11,6 +11,7 @@ export default function X01Screen() {
     | {
         startingScore: X01Variant;
         players: { id: string; name: string }[];
+        mainPlayerId?: string | null;
         bestOf: 1 | 3 | 5 | 7;
         useSets?: boolean;
         bestOfSets?: 1 | 3 | 5;
@@ -23,6 +24,7 @@ export default function X01Screen() {
     { id: "p1", name: "Pelaaja 1" },
     { id: "p2", name: "Pelaaja 2" },
   ];
+  const mainPlayerId = params?.mainPlayerId ?? players[0]?.id ?? null;
   const bestOf = params?.bestOf ?? 1;
   const useSets = params?.useSets ?? false;
   const bestOfSets = params?.bestOfSets ?? 3;
@@ -32,6 +34,7 @@ export default function X01Screen() {
     <X01Game
       startingScore={startingScore}
       players={players}
+      mainPlayerId={mainPlayerId}
       bestOf={bestOf}
       useSets={useSets}
       bestOfSets={bestOfSets}

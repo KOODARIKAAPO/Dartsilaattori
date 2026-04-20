@@ -13,6 +13,20 @@ type PlayerInput = {
   name: string;
 };
 
+function shufflePlayers(players: PlayerInput[]) {
+  const shuffled = [...players];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [
+      shuffled[randomIndex],
+      shuffled[index],
+    ];
+  }
+
+  return shuffled;
+}
+
 const STARTING_SCORE_OPTIONS: X01Variant[] = [
   101, 201, 301, 401, 501, 601, 701, 801, 901, 1001,
 ];
@@ -92,9 +106,13 @@ export default function X01SetupScreen() {
 
   const handleStart = () => {
     if (!canStart) return;
+    const mainPlayerId = players[0]?.id ?? null;
+    const randomizedPlayers = shufflePlayers(players);
+
     navigation.navigate("X01", {
       startingScore,
-      players,
+      players: randomizedPlayers,
+      mainPlayerId,
       bestOf,
       useSets,
       bestOfSets,
