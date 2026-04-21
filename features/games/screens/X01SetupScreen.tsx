@@ -36,7 +36,7 @@ export default function X01SetupScreen() {
     useState<(typeof BEST_OF_OPTIONS)[number]>(5);
   const [players, setPlayers] = useState<PlayerInput[]>([
     { id: "p1", name: "" },
-    { id: "p2", name: "" },
+    //{ id: "p2", name: "" },
   ]);
   const [friendModalVisible, setFriendModalVisible] = useState(false);
 
