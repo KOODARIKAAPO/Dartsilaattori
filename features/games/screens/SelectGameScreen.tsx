@@ -10,8 +10,16 @@ export default function SelectGameScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.screenText, { color: theme.colors.onBackground }]}>You are on Select Game screen</Text>
+      <Text style={[styles.screenText, { color: theme.colors.onBackground }]}>Pelivalikko</Text>
       
+      <Button
+        mode="contained"
+        style={styles.button}
+        onPress={() => navigation.navigate("X01Setup")}
+      >
+        Ottelu
+      </Button>
+
       <Button
         mode="contained"
         style={styles.button}
@@ -19,20 +27,13 @@ export default function SelectGameScreen() {
       >
         101 
       </Button>
-      <Button
-        mode="contained"
-        style={styles.button}
-        onPress={() => navigation.navigate("X01Setup")}
-      >
-        X01
-      </Button>
 
       <Button
         mode="contained"
         style={styles.button}
         onPress={() => navigation.navigate("CheckoutWarmup")}
       >
-        Checkout Warmup
+        Poikkasu treeni
       </Button>
 
       <Button
@@ -40,7 +41,7 @@ export default function SelectGameScreen() {
         style={styles.button}
         onPress={() => navigation.navigate("Bobs27")}
       >
-        Bob's 27
+        Bobin 27
       </Button>
 
       <Button
@@ -48,7 +49,7 @@ export default function SelectGameScreen() {
         style={styles.button}
         onPress={() => navigation.navigate("AroundTheClock")}
       >
-        Around The Clock
+        Kellon ympäri 
       </Button>
       
       <Button
@@ -56,7 +57,7 @@ export default function SelectGameScreen() {
         style={styles.button}
         onPress={() => navigation.navigate("CricketSetup")}
       >
-        Cricket
+        Cricketti
       </Button>
     </View>
   );

@@ -3,33 +3,48 @@ import { ScrollView, View, Text, StyleSheet } from "react-native";
 import { Card, ActivityIndicator, Button, SegmentedButtons, useTheme } from "react-native-paper";
 import { Svg, Polyline, Circle, Line, Path, Text as SvgText, Defs, LinearGradient, Stop } from "react-native-svg";
 import { auth, subscribeToAuthChanges } from "../../firebase/Auth";
-import {subscribeToGamesSince, subscribeToUserStats, GameInput, UserStats,
+import { subscribeToGamesSince, subscribeToRecentGames, subscribeToUserStats, GameInput, UserStats,
 } from "../../firebase/Firestore";
 
 const DAY_OPTIONS = [
   { value: 5, label: "5 pv" },
   { value: 15, label: "15 pv" },
   { value: 30, label: "30 pv" },
-]
+];
 
-type GameRecord = GameInput & { id: string };
+const GAME_OPTIONS = [
+  { value: 5, label: "5 peliä" },
+  { value: 15, label: "15 peliä" },
+  { value: 30, label: "30 peliä" },
+];
+
+const FILTER_MODES = [
+  { value: "days", label: "Päivät" },
+  { value: "games", label: "Pelit" },
+] as const;
+
+type FilterMode = (typeof FILTER_MODES)[number]["value"];
+
+type GameRecord = GameInput & { id: string; deleted?: boolean };
 
 export default function ProgressScreen() {
-  const theme = useTheme()
-  const styles = createStyles(theme)
+  const theme = useTheme();
+  const styles = createStyles(theme);
 
-  const [uid, setUid] = useState<string | null>(auth.currentUser?.uid ?? null)
-  const [games, setGames] = useState<GameRecord[]>([])
-  const [stats, setStats] = useState<UserStats | null>(null)
-  const [gamesLoading, setGamesLoading] = useState(true)
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [dayRange, setDayRange] = useState(30)
-  const loading = gamesLoading || statsLoading
+  const [uid, setUid] = useState<string | null>(auth.currentUser?.uid ?? null);
+  const [games, setGames] = useState<GameRecord[]>([]);
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [gamesLoading, setGamesLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filterMode, setFilterMode] = useState<FilterMode>("days");
+  const [dayRange, setDayRange] = useState(30);
+  const [gameLimit, setGameLimit] = useState(30);
+  const loading = gamesLoading || statsLoading;
 
   useEffect(() => {
     const unsubscribe = subscribeToAuthChanges((user) => {
-      setUid(user?.uid ?? null)
+      setUid(user?.uid ?? null);
     });
 
     return unsubscribe;
@@ -37,39 +52,41 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     if (!uid) {
-      setGames([])
-      setStats(null)
-      setError("Kirjaudu sisään nähdäksesi kehityskaavion.")
-      setGamesLoading(false)
-      setStatsLoading(false)
+      setGames([]);
+      setStats(null);
+      setError("Kirjaudu sisään nähdäksesi kehityskaavion.");
+      setGamesLoading(false);
+      setStatsLoading(false);
       return undefined;
     }
 
-    setGamesLoading(true)
-    setError(null)
+    setGamesLoading(true);
+    setError(null);
 
-    const unsubscribe = subscribeToGamesSince(
-      uid,
-      dayRange,
-      (recentGames) => {
-        setGames(recentGames);
-        setGamesLoading(false);
-      },
-      () => {
-        setError("Virhe pelihistorian haussa. Yritä uudelleen.");
-        setGamesLoading(false);
-      }
-    );
+    const handleGamesUpdate = (recentGames: GameRecord[]) => {
+      setGames(recentGames.filter((game) => !game.deleted));
+      setGamesLoading(false);
+    };
+
+    const handleGamesError = () => {
+      setError("Virhe pelihistorian haussa. Yritä uudelleen.");
+      setGamesLoading(false);
+    };
+
+    const unsubscribe =
+      filterMode === "days"
+        ? subscribeToGamesSince(uid, dayRange, handleGamesUpdate, handleGamesError)
+        : subscribeToRecentGames(uid, gameLimit, handleGamesUpdate, handleGamesError);
 
     return () => {
       unsubscribe();
     };
-  }, [uid, dayRange]);
+  }, [uid, filterMode, dayRange, gameLimit]);
 
   useEffect(() => {
     if (!uid) return undefined;
 
-    setStatsLoading(true)
+    setStatsLoading(true);
     const unsubscribeStats = subscribeToUserStats(
       uid,
       (nextStats) => {
@@ -96,35 +113,45 @@ export default function ProgressScreen() {
       );
   }, [games]);
 
+  const selectedRangeLabel =
+    filterMode === "days"
+      ? `viimeisen ${dayRange} päivän`
+      : `${gameLimit} viimeisimmän pelin`;
+
+  const filterValueLabel =
+    filterMode === "days"
+      ? `Ajanjakso: ${dayRange} päivää`
+      : `Otanta: ${gameLimit} viimeisintä peliä`;
+
   const doublesEfficiency = useMemo(() => {
-    let hits = 0
-    let attempts = 0
+    let hits = 0;
+    let attempts = 0;
     return games
       .slice()
       .reverse()
       .map((game) => {
-        hits += game.doublesHit ?? 0
-        attempts += game.doublesAttempted ?? 0
-        return attempts > 0 ? (hits / attempts) * 100 : 0
-      })
-  }, [games])
+        hits += game.doublesHit ?? 0;
+        attempts += game.doublesAttempted ?? 0;
+        return attempts > 0 ? (hits / attempts) * 100 : 0;
+      });
+  }, [games]);
 
   const maxAvgValue =
-    gameAverages.length > 0 ? Math.max(...gameAverages) : 0
+    gameAverages.length > 0 ? Math.max(...gameAverages) : 0;
   const minAvgValue =
-    gameAverages.length > 0 ? Math.min(...gameAverages) : 0
-  const maxAvg = Math.max(40, maxAvgValue, 1)
+    gameAverages.length > 0 ? Math.min(...gameAverages) : 0;
+  const maxAvg = Math.max(40, maxAvgValue, 1);
   const avgValue =
     gameAverages.length > 0
       ? gameAverages.reduce((sum, v) => sum + v, 0) / gameAverages.length
-      : 0
+      : 0;
 
-  const hasData = gameAverages.length > 0
+  const hasData = gameAverages.length > 0;
 
-  const chartHeight = 220
-  const chartWidth = 220
-  const doublesChartHeight = 180
-  const doublesChartWidth = 220
+  const chartHeight = 220;
+  const chartWidth = 220;
+  const doublesChartHeight = 180;
+  const doublesChartWidth = 220;
 
   const chartPoints = useMemo(() => {
     return gameAverages.map((avg, idx) => {
@@ -142,136 +169,136 @@ export default function ProgressScreen() {
     () => chartPoints.map((p) => `${p.x},${p.y}`).join(" "),
     [chartPoints]
   );
-  const lastPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : null
+  const lastPoint = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1] : null;
   const minPoint = chartPoints.reduce<{ x: number; y: number } | null>(
     (acc, point) => {
       if (!acc || point.y > acc.y) return point;
       return acc;
     },
     null
-  )
+  );
   const maxPoint = chartPoints.reduce<{ x: number; y: number } | null>(
     (acc, point) => {
       if (!acc || point.y < acc.y) return point;
       return acc;
     },
     null
-  )
+  );
   const xTickLabels = useMemo(() => {
-    const total = gameAverages.length
-    if (total <= 1) return [{ label: total.toString(), key: "only" }]
-    const mid = Math.round(total / 2)
+    const total = gameAverages.length;
+    if (total <= 1) return [{ label: total.toString(), key: "only" }];
+    const mid = Math.round(total / 2);
     return [
       { label: "1", key: "first" },
       { label: mid.toString(), key: "mid" },
       { label: total.toString(), key: "last" },
-    ]
-  }, [gameAverages.length])
+    ];
+  }, [gameAverages.length]);
 
-  const tickFractions = [1, 0.75, 0.5, 0.25, 0]
-  const tickValues = tickFractions.map((f) => Math.round(maxAvg * f))
+  const tickFractions = [1, 0.75, 0.5, 0.25, 0];
+  const tickValues = tickFractions.map((f) => Math.round(maxAvg * f));
   const avgLineY =
-    maxAvg > 0 ? chartHeight - (avgValue / maxAvg) * chartHeight : chartHeight
+    maxAvg > 0 ? chartHeight - (avgValue / maxAvg) * chartHeight : chartHeight;
 
   const clamp = (value: number, min: number, max: number) =>
-    Math.max(min, Math.min(max, value))
+    Math.max(min, Math.min(max, value));
 
   const buildCurvePath = (points: Array<{ x: number; y: number }>) => {
-    if (points.length === 0) return ""
+    if (points.length === 0) return "";
     if (points.length === 1) {
-      const p = points[0]
-      return `M ${p.x} ${p.y}`
+      const p = points[0];
+      return `M ${p.x} ${p.y}`;
     }
-    const smoothing = 0.2
+    const smoothing = 0.2;
     return points.reduce((path, point, i, pts) => {
       if (i === 0) {
-        return `M ${point.x} ${point.y}`
+        return `M ${point.x} ${point.y}`;
       }
-      const prev = pts[i - 1]
-      const next = pts[i + 1] || point
-      const dx = next.x - prev.x
-      const dy = next.y - prev.y
-      const c1x = prev.x + dx * smoothing
-      const c1y = prev.y + dy * smoothing
-      const c2x = point.x - dx * smoothing
-      const c2y = point.y - dy * smoothing
-      return `${path} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${point.x} ${point.y}`
-    }, "")
-  }
+      const prev = pts[i - 1];
+      const next = pts[i + 1] || point;
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+      const c1x = prev.x + dx * smoothing;
+      const c1y = prev.y + dy * smoothing;
+      const c2x = point.x - dx * smoothing;
+      const c2y = point.y - dy * smoothing;
+      return `${path} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${point.x} ${point.y}`;
+    }, "");
+  };
 
   const buildAreaPath = (
     curve: string,
     points: Array<{ x: number; y: number }>,
     height: number
   ) => {
-    if (!curve || points.length === 0) return ""
-    const last = points[points.length - 1]
-    return `${curve} L ${last.x} ${height} L 0 ${height} Z`
-  }
+    if (!curve || points.length === 0) return "";
+    const last = points[points.length - 1];
+    return `${curve} L ${last.x} ${height} L 0 ${height} Z`;
+  };
 
   const curvePath = useMemo(() => {
-    if (chartPoints.length === 0) return ""
-    return buildCurvePath(chartPoints)
-  }, [chartPoints])
+    if (chartPoints.length === 0) return "";
+    return buildCurvePath(chartPoints);
+  }, [chartPoints]);
 
   const areaPath = useMemo(() => {
-    return buildAreaPath(curvePath, chartPoints, chartHeight)
-  }, [chartPoints, chartHeight, curvePath])
+    return buildAreaPath(curvePath, chartPoints, chartHeight);
+  }, [chartPoints, chartHeight, curvePath]);
 
-  const doublesMax = Math.max(0, ...doublesEfficiency)
+  const doublesMax = Math.max(0, ...doublesEfficiency);
   const doublesAvg =
     doublesEfficiency.length > 0
       ? doublesEfficiency[doublesEfficiency.length - 1]
-      : 0
+      : 0;
   const doublesPoints = useMemo(() => {
     return doublesEfficiency.map((pct, idx) => {
       const x =
         doublesEfficiency.length > 1
           ? (idx / (doublesEfficiency.length - 1)) * doublesChartWidth
-          : doublesChartWidth / 2
-      const normalized = pct / 100
-      const y = doublesChartHeight - normalized * doublesChartHeight
-      return { x, y, value: pct }
-    })
-  }, [doublesEfficiency, doublesChartHeight, doublesChartWidth])
+          : doublesChartWidth / 2;
+      const normalized = pct / 100;
+      const y = doublesChartHeight - normalized * doublesChartHeight;
+      return { x, y, value: pct };
+    });
+  }, [doublesEfficiency, doublesChartHeight, doublesChartWidth]);
   const doublesCurvePath = useMemo(
     () => buildCurvePath(doublesPoints),
     [doublesPoints]
-  )
+  );
   const doublesAreaPath = useMemo(
     () => buildAreaPath(doublesCurvePath, doublesPoints, doublesChartHeight),
     [doublesCurvePath, doublesPoints, doublesChartHeight]
-  )
+  );
 
-  const doublesAttempted = stats?.doublesAttempted ?? 0
-  const doublesHit = stats?.doublesHit ?? 0
-  const doublesMissed = Math.max(0, doublesAttempted - doublesHit)
+  const doublesAttempted = stats?.doublesAttempted ?? 0;
+  const doublesHit = stats?.doublesHit ?? 0;
+  const doublesMissed = Math.max(0, doublesAttempted - doublesHit);
   const doublePct =
-    doublesAttempted > 0 ? doublesHit / doublesAttempted : 0
+    doublesAttempted > 0 ? doublesHit / doublesAttempted : 0;
 
-  const donutSize = 140
-  const donutStroke = 14
-  const donutRadius = (donutSize - donutStroke) / 2
-  const donutCenter = donutSize / 2
-  const donutCircumference = 2 * Math.PI * donutRadius
-  const hitLength = donutCircumference * doublePct
-  const missLength = donutCircumference - hitLength
-  const gap = 6
-  const hitDash = Math.max(0, hitLength - gap / 2)
-  const missDash = Math.max(0, missLength - gap / 2)
-  const hitOffset = 0
-  const missOffset = -(hitDash + gap)
+  const donutSize = 140;
+  const donutStroke = 14;
+  const donutRadius = (donutSize - donutStroke) / 2;
+  const donutCenter = donutSize / 2;
+  const donutCircumference = 2 * Math.PI * donutRadius;
+  const hitLength = donutCircumference * doublePct;
+  const missLength = donutCircumference - hitLength;
+  const gap = 6;
+  const hitDash = Math.max(0, hitLength - gap / 2);
+  const missDash = Math.max(0, missLength - gap / 2);
+  const hitOffset = 0;
+  const missOffset = -(hitDash + gap);
 
   const polarToCartesian = (angle: number, radius = donutRadius) => {
-    const a = (angle - 90) * (Math.PI / 180)
+    const a = (angle - 90) * (Math.PI / 180);
     return {
       x: donutCenter + radius * Math.cos(a),
       y: donutCenter + radius * Math.sin(a),
-    }
-  }
+    };
+  };
 
-  const hitAngle = Math.max(0, Math.min(1, doublePct)) * 360
-  const labelRadius = donutRadius * 0.75
+  const hitAngle = Math.max(0, Math.min(1, doublePct)) * 360;
+  const labelRadius = donutRadius * 0.75;
   const hitLabelPos = polarToCartesian(-90 + hitAngle / 2, labelRadius);
   const missLabelPos = polarToCartesian(
     -90 + hitAngle + (360 - hitAngle) / 2,
@@ -282,11 +309,24 @@ export default function ProgressScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <Text style={styles.title}>Kehitys</Text>
       <View style={styles.filterRow}>
-        <Text style={styles.filterLabel}>Ajanjakso</Text>
+        <Text style={styles.filterLabel}>Suodatin</Text>
         <SegmentedButtons
-          value={dayRange.toString()}
-          onValueChange={(value) => setDayRange(Number(value))}
-          buttons={DAY_OPTIONS.map((option) => ({
+          value={filterMode}
+          onValueChange={(value) => setFilterMode(value as FilterMode)}
+          buttons={FILTER_MODES.map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
+          density="small"
+          style={styles.filterButtons}
+        />
+        <Text style={styles.filterLabel}>{filterValueLabel}</Text>
+        <SegmentedButtons
+          value={(filterMode === "days" ? dayRange : gameLimit).toString()}
+          onValueChange={(value) =>
+            filterMode === "days" ? setDayRange(Number(value)) : setGameLimit(Number(value))
+          }
+          buttons={(filterMode === "days" ? DAY_OPTIONS : GAME_OPTIONS).map((option) => ({
             value: option.value.toString(),
             label: option.label,
           }))}
@@ -309,19 +349,14 @@ export default function ProgressScreen() {
         <Card style={styles.card} mode="elevated">
           <Card.Content>
             <Text style={styles.cardTitle}>
-              Viimeisen {dayRange} päivän keskiarvon kehitys
+              {filterMode === "days"
+                ? `Viimeisen ${dayRange} päivän keskiarvon kehitys`
+                : `${gameLimit} viimeisimmän pelin keskiarvon kehitys`}
             </Text>
 
             {hasData ? (
               <View>
                 <View style={styles.chartRow}>
-                  <View style={styles.yAxis}>
-                    {tickValues.map((value, idx) => (
-                      <Text key={`${value}-${idx}`} style={styles.axisText}>
-                        {value}
-                      </Text>
-                    ))}
-                  </View>
                   <View style={styles.chartColumn}>
                     <View style={styles.chartArea}>
                       <Svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} style={styles.chartSvg}>
@@ -491,17 +526,14 @@ export default function ProgressScreen() {
 
       <Card style={styles.card} mode="elevated">
         <Card.Content>
-          <Text style={styles.cardTitle}>Tupla % viimeiset {dayRange} päivää</Text>
+          <Text style={styles.cardTitle}>
+            {filterMode === "days"
+              ? `Tupla % viimeiset ${dayRange} päivää`
+              : `Tupla % ${gameLimit} viimeisimmästä pelistä`}
+          </Text>
           {doublesEfficiency.length > 0 ? (
             <View>
               <View style={styles.chartRow}>
-                <View style={styles.yAxis}>
-                  {[100, 75, 50, 25, 0].map((value) => (
-                    <Text key={`dbl-${value}`} style={styles.axisText}>
-                      {value}
-                    </Text>
-                  ))}
-                </View>
                 <View style={styles.chartColumn}>
                   <View style={[styles.chartArea, styles.doublesChartArea]}>
                     <Svg viewBox={`0 0 ${doublesChartWidth} ${doublesChartHeight}`} style={styles.chartSvg}>
@@ -523,6 +555,22 @@ export default function ProgressScreen() {
                             stroke={theme.colors.outlineVariant}
                             strokeWidth="0.6"
                           />
+                        )
+                      })}
+                      {[100, 75, 50, 25, 0].map((value, idx) => {
+                        const fraction = 1 - idx * 0.25
+                        const y = doublesChartHeight - fraction * doublesChartHeight
+                        return (
+                          <SvgText
+                            key={`dbl-grid-label-${value}`}
+                            x={4}
+                            y={Math.max(10, y - 4)}
+                            fill={theme.colors.outlineVariant}
+                            fontSize="9"
+                            textAnchor="start"
+                          >
+                            {value}
+                          </SvgText>
                         )
                       })}
                       {doublesAreaPath ? (
@@ -638,6 +686,8 @@ export default function ProgressScreen() {
         </Card.Content>
       </Card>
 
+      <Text style={styles.contextText}>Näytetään {selectedRangeLabel} data.</Text>
+
       <Button mode="outlined" disabled style={styles.refreshButton}>
         Päivittyy automaattisesti
       </Button>
@@ -702,6 +752,13 @@ const createStyles = (theme: any) =>
     },
     refreshButton: {
       marginTop: 8,
+    },
+    contextText: {
+      marginTop: -4,
+      marginBottom: 8,
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 12,
+      textAlign: "center",
     },
     chartRow: {
       flexDirection: "row",
