@@ -10,7 +10,7 @@ export default function SelectGameScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.screenText, { color: theme.colors.onBackground }]}>Pelivalikko</Text>
+      <Text style={[styles.title, { color: theme.colors.onBackground }]}>Pelivalikko</Text>
       
       <Button
         mode="contained"
@@ -69,12 +69,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  screenText: {
-    fontSize: 18,
-    marginBottom: 24,
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 40,
+    textAlign: 'center',
+    letterSpacing: 1,
   },
   button: {
-    width: 200,
-    marginVertical: 8,
+    width: 250,
+    marginVertical: 10,
+    borderRadius: 12,
+    height: 50,
   },
 });
