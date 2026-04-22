@@ -21,7 +21,7 @@ export default function FriendsScreen() {
     <View style={styles.container}>
       <TextInput
         style={styles.input}
-        placeholder="Search users..."
+        placeholder="Etsi käyttäjiä..."
         placeholderTextColor={theme.colors.onSurfaceVariant}
         value={query}
         onChangeText={setQuery}
@@ -31,13 +31,13 @@ export default function FriendsScreen() {
 
       {query.length >= 2 && (
         <>
-          <Text style={styles.title}>Search Results</Text>
+          <Text style={styles.title}>Hakutulokset</Text>
           <FlatList
             data={searchResults}
             keyExtractor={(item) => item.uid}
             contentContainerStyle={searchResults.length === 0 ? styles.emptyState : undefined}
             ListEmptyComponent={
-              <Text style={styles.emptyText}>No users found.</Text>
+              <Text style={styles.emptyText}>Käyttäjiä ei löytynyt.</Text>
             }
             renderItem={({ item }) => (
               <View style={styles.searchItem}>
@@ -46,7 +46,7 @@ export default function FriendsScreen() {
                   style={styles.addButton}
                   onPress={() => addFriend(item)}
                 >
-                  <Text style={styles.addButtonText}>Add Friend</Text>
+                  <Text style={styles.addButtonText}>Lisää ystävä</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -54,13 +54,13 @@ export default function FriendsScreen() {
         </>
       )}
 
-      <Text style={styles.title}>My Friends</Text>
+      <Text style={styles.title}>Minun ystävät</Text>
       <FlatList
         data={friends}
         keyExtractor={(item) => item.uid}
         contentContainerStyle={friends.length === 0 ? styles.emptyState : undefined}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No friends added yet.</Text>
+          <Text style={styles.emptyText}>Ystäviä ei ole vielä lisätty.</Text>
         }
         renderItem={({ item }) => (
           <View style={styles.friendRow}>
