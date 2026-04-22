@@ -183,7 +183,7 @@ export default function Cricket() {
             {p.name} {i === currentPlayer ? "•" : ""}
           </Text>
 
-          <Text style={styles.score}>Score: {p.score}</Text>
+          <Text style={styles.score}>Pisteet: {p.score}</Text>
 
           {CRICKET_NUMBERS.map((num) => (
             <Text key={num} style={styles.markText}>

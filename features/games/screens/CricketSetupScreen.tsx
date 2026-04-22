@@ -31,7 +31,7 @@ export default function CricketSetupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Cricket Setup</Text>
+      <Text style={styles.title}>Alusta peli</Text>
 
       <Text style={styles.label}>Pelaajat: {playerCount}</Text>
       <View style={styles.row}>
@@ -50,7 +50,7 @@ export default function CricketSetupScreen() {
       {Array.from({ length: playerCount }).map((_, i) => (
         <TextInput
           key={i}
-          label={`Player ${i + 1}`}
+          label={`Pelaaja ${i + 1}`}
           value={players[i]}
           onChangeText={(text) => updatePlayerName(i, text)}
           style={styles.input}
