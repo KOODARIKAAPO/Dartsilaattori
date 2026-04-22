@@ -38,6 +38,7 @@ export default function X01SetupScreen() {
     { id: "p1", name: "" },
     //{ id: "p2", name: "" },
   ]);
+  const [startingPlayerIndex, setStartingPlayerIndex] = useState(0);
   const [friendModalVisible, setFriendModalVisible] = useState(false);
 
   useEffect(() => {
@@ -99,6 +100,7 @@ export default function X01SetupScreen() {
       useSets,
       bestOfSets,
       bestOfLegs,
+      startingPlayerIndex,
     });
   };
 
@@ -202,6 +204,26 @@ export default function X01SetupScreen() {
             >
               Setti-ottelu
             </Button>
+          </View>
+        </Surface>
+
+        <Surface style={styles.card} elevation={1}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Aloittava pelaaja
+          </Text>
+
+          <View style={styles.optionRow}>
+            {players.map((player, index) => (
+              <Button
+                key={player.id}
+                mode={startingPlayerIndex === index ? "contained" : "outlined"}
+                textColor={startingPlayerIndex === index ? undefined : outlinedTextColor}
+                onPress={() => setStartingPlayerIndex(index)}
+                style={styles.optionButton}
+              >
+                {player.name || `Pelaaja ${index + 1}`}
+              </Button>
+            ))}
           </View>
         </Surface>
 

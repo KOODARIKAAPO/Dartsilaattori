@@ -16,14 +16,15 @@ type PlayerInput = {
 interface UseX01GameParams {
   startingScore: X01Variant;
   players: PlayerInput[];
+  startingPlayerIndex?: number;
 }
 
 
-export function useX01Game({startingScore, players }: UseX01GameParams) 
+export function useX01Game({startingScore, players, startingPlayerIndex = 0 }: UseX01GameParams) 
 {
   const [state, dispatch] = useReducer(
     x01Reducer,
-    createX01Game({ startingScore, players })
+    createX01Game({ startingScore, players, startingPlayerIndex })
   );
 
   // Nykyinen pelaaja Tulee aina tilasta, frontista ei tarvitse hakea erikseen.

@@ -15,6 +15,7 @@ export default function X01Screen() {
         useSets?: boolean;
         bestOfSets?: 1 | 3 | 5;
         bestOfLegs?: 1 | 3 | 5 | 7;
+        startingPlayerIndex?: number;
       }
     | undefined;
 
@@ -27,6 +28,7 @@ export default function X01Screen() {
   const useSets = params?.useSets ?? false;
   const bestOfSets = params?.bestOfSets ?? 3;
   const bestOfLegs = params?.bestOfLegs ?? 5;
+  const startingPlayerIndex = params?.startingPlayerIndex ?? 0;
 
   return (
     <X01Game
@@ -36,6 +38,7 @@ export default function X01Screen() {
       useSets={useSets}
       bestOfSets={bestOfSets}
       bestOfLegs={bestOfLegs}
+      startingPlayerIndex={startingPlayerIndex}
     />
   );
 }
