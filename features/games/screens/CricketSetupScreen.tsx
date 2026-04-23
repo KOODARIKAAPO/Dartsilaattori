@@ -72,7 +72,7 @@ export default function CricketSetupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Cricket Setup</Text>
+      <Text style={styles.title}>Alusta peli</Text>
 
       <Text style={styles.label}>Pelaajat: {playerCount}</Text>
       <View style={styles.row}>

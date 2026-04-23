@@ -8,10 +8,11 @@ type PlayerInput = {
 interface CreateGameParams {
   startingScore: X01Variant;
   players: PlayerInput[];
+  startingPlayerIndex?: number;
 }
 
 //rakennetaan uusi peli
-export function createX01Game({startingScore,players,}: CreateGameParams): X01GameState 
+export function createX01Game({startingScore,players,startingPlayerIndex = 0}: CreateGameParams): X01GameState 
 {
   return {
     startingScore,
@@ -23,7 +24,7 @@ export function createX01Game({startingScore,players,}: CreateGameParams): X01Ga
       hasWon: false,
     })),
     legStartIndex: 0,
-    currentPlayerIndex: 0,
+    currentPlayerIndex: startingPlayerIndex,
     round: 1,
     turns: [],
     winnerId: null,
