@@ -52,7 +52,7 @@ export const AroundTheClockScreen = () => {
             Darts: {game.dartsThrown}
           </Text>
           <Text style={styles.finalStat}>
-            Hit Rate: {game.hitRate.toFixed(1)}%
+            Osuma prosentti: {game.hitRate.toFixed(1)}%
           </Text>
 
           <Pressable style={styles.resetBtn} onPress={game.resetGame}>

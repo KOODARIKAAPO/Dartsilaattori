@@ -32,6 +32,7 @@ interface GameScreenProps {
   useSets?: boolean;
   bestOfSets?: 1 | 3 | 5;
   bestOfLegs?: 1 | 3 | 5 | 7;
+  startingPlayerIndex?: number;
 }
 
 export function GameScreen({
@@ -42,6 +43,7 @@ export function GameScreen({
   useSets = false,
   bestOfSets = 3,
   bestOfLegs = 5,
+  startingPlayerIndex = 0,
 }: GameScreenProps)
 {
   // --- UI/theme/nav ---
@@ -68,6 +70,7 @@ export function GameScreen({
   } = useX01Game({
     startingScore,
     players,
+    startingPlayerIndex,
   });
 
   // --- Keskiarvo legeittäin ---
