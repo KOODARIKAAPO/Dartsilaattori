@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { TextInput, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useAppTheme } from "../../../ui/ThemeContext";
 import type { MD3Theme } from "react-native-paper";
+import { auth, subscribeToAuthChanges } from "../../../firebase/Auth";
+import { getUserById } from "../../friends/services/userService";
 
 export default function CricketSetupScreen() {
   const navigation = useNavigation<any>();
@@ -13,6 +15,45 @@ export default function CricketSetupScreen() {
   const [playerCount, setPlayerCount] = useState(2);
   const [players, setPlayers] = useState(["P1", "P2", "P3", "P4"]);
   const [startingPlayer, setStartingPlayer] = useState(0);
+
+  useEffect(() => {
+    const applyUserName = async (uid?: string) => {
+      if (!uid) return;
+
+      try {
+        const user = await getUserById(uid);
+        const name = user?.displayName;
+
+        if (!name) return;
+
+        setPlayers((prev) => {
+          if (prev.length === 0) return prev;
+
+
+          if (prev[0] && prev[0] !== "P1" && prev[0].trim().length > 0) {
+            return prev;
+          }
+
+          const next = [...prev];
+          next[0] = name;
+          return next;
+        });
+
+  
+        setStartingPlayer(0);
+      } catch (e) {
+        console.warn("Failed to load user name", e);
+      }
+    };
+
+    applyUserName(auth.currentUser?.uid);
+
+    const unsubscribe = subscribeToAuthChanges((user) => {
+      applyUserName(user?.uid);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const updatePlayerName = (index: number, name: string) => {
     const updated = [...players];
@@ -66,7 +107,7 @@ export default function CricketSetupScreen() {
             onPress={() => setStartingPlayer(i)}
             style={styles.smallButton}
           >
-            {players[i] || `P${i + 1}`}
+            {players[i] || `Pelaaja ${i + 1}`}
           </Button>
         ))}
       </View>
@@ -102,11 +143,14 @@ const createStyles = (theme: MD3Theme) =>
 
     row: {
       flexDirection: "row",
+      flexWrap: "wrap",
       marginBottom: 10,
     },
 
     smallButton: {
       marginRight: 8,
+      marginBottom: 8,
+      maxWidth: "48%",
     },
 
     input: {

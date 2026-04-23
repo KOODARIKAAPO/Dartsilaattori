@@ -127,18 +127,11 @@ export default function Cricket() {
       ]);
 
       if (checkWin(newPlayers)) {
-        Alert.alert(
-          "Peli ohi",
-          `${player.name} voitti!`,
-          [
-            {
-              text: "OK",
-              onPress: () => navigation.navigate("SelectGame"),
-            },
-          ],
-          { cancelable: false }
-        );
-      }
+  navigation.replace("CricketResult", {
+    winner: player.name,
+    players: newPlayers,
+  });
+}
 
       return newPlayers;
     });
@@ -174,24 +167,26 @@ export default function Cricket() {
         </Text>
       </View>
 
-      {players.map((p, i) => (
-        <View
-          key={i}
-          style={[styles.player, i === currentPlayer && styles.playerActive]}
-        >
-          <Text style={styles.name}>
-            {p.name} {i === currentPlayer ? "•" : ""}
-          </Text>
-
-          <Text style={styles.score}>Pisteet: {p.score}</Text>
-
-          {CRICKET_NUMBERS.map((num) => (
-            <Text key={num} style={styles.markText}>
-              {num === 25 ? "BULL" : num}: {"●".repeat(p.marks[num])}
+      <View style={styles.playersContainer}>
+        {players.map((p, i) => (
+          <View
+            key={i}
+            style={[styles.player, i === currentPlayer && styles.playerActive]}
+          >
+            <Text style={styles.name}>
+              {p.name} {i === currentPlayer ? "•" : ""}
             </Text>
-          ))}
-        </View>
-      ))}
+
+            <Text style={styles.score}>Score: {p.score}</Text>
+
+            {CRICKET_NUMBERS.map((num) => (
+              <Text key={num} style={styles.markText}>
+                {num === 25 ? "BULL" : num}: {"●".repeat(p.marks[num])}
+              </Text>
+            ))}
+          </View>
+        ))}
+      </View>
 
       <Dartskeyboard
         onThrow={handleThrow}
@@ -209,7 +204,7 @@ const createStyles = (theme: MD3Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      padding: 20,
+      padding: 10,
       backgroundColor: theme.colors.background,
     },
     turnBanner: {
@@ -225,8 +220,14 @@ const createStyles = (theme: MD3Theme) =>
       color: theme.colors.onPrimaryContainer,
       fontWeight: "600",
     },
-    player: {
+    playersContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
       marginBottom: 16,
+    },
+    player: {
+      flex: 1,
+      marginHorizontal: 4,
       padding: 14,
       borderRadius: 12,
       backgroundColor: theme.colors.surface,
