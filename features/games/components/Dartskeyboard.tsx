@@ -23,7 +23,7 @@ interface Props {
   showReset?: boolean;
   showMultipliers?: boolean;
   lockedMultiplier?: Multiplier;
-  inputPreview?: number[];
+  inputPreview?: PreviewItem[];
 }
 
 const { width } = Dimensions.get("window");

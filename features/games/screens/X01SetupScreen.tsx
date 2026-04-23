@@ -7,6 +7,8 @@ import type { X01Variant } from "../../../types/X01Types";
 import { auth, subscribeToAuthChanges } from "../../../firebase/Auth";
 import { FriendSelectionModal } from "../components/FriendSelectionModal";
 import type { User } from "../../friends/services/userService";
+import { getUserById } from "../../friends/services/userService";
+
 
 type PlayerInput = {
   id: string;
@@ -41,25 +43,37 @@ export default function X01SetupScreen() {
   const [friendModalVisible, setFriendModalVisible] = useState(false);
 
   useEffect(() => {
-    const applyUserName = (name?: string | null) => {
+  const applyUserName = async (uid?: string) => {
+    if (!uid) return;
+
+    try {
+      const user = await getUserById(uid);
+      const name = user?.displayName;
+
       if (!name) return;
+
       setPlayers((prev) => {
         if (prev.length === 0) return prev;
+
         if (prev[0].name.trim().length > 0) return prev;
+
         const next = [...prev];
         next[0] = { ...next[0], name };
         return next;
       });
-    };
+    } catch (e) {
+      console.warn("Failed to load user name", e);
+    }
+  };
 
-    applyUserName(auth.currentUser?.displayName ?? auth.currentUser?.email);
+  applyUserName(auth.currentUser?.uid);
 
-    const unsubscribe = subscribeToAuthChanges((user) => {
-      applyUserName(user?.displayName ?? user?.email);
-    });
+  const unsubscribe = subscribeToAuthChanges((user) => {
+    applyUserName(user?.uid);
+  });
 
-    return unsubscribe;
-  }, []);
+  return unsubscribe;
+}, []);
 
   const canStart =
     players.length > 0 &&

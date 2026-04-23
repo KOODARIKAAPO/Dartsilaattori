@@ -93,3 +93,19 @@ export async function addFriend(friendUid: string, friendDisplayName: string): P
     throw error;
   }
 }
+
+export async function getUserById(uid: string): Promise<User | null> {
+  try {
+    const docSnap = await getDoc(doc(db, "users", uid));
+
+    if (!docSnap.exists()) return null;
+
+    return {
+      uid,
+      displayName: docSnap.data().displayName,
+    };
+  } catch (error) {
+    console.error("Error fetching user by id:", error);
+    return null;
+  }
+}

@@ -22,6 +22,7 @@ import { AroundTheClockScreen } from "../features/games/screens/AroundTheClockSc
 import Cricket from "../features/games/components/Cricket";
 import CricketSetupScreen from "../features/games/screens/CricketSetupScreen";
 import SettingsScreen from "../features/settings/SettingsScreen";
+import CricketResultScreen from "../features/games/screens/CricketResultScreen";
 import { IconButton } from "react-native-paper";
 
 import { subscribeToAuthChanges } from "../firebase/Auth";
@@ -281,6 +282,12 @@ export default function Navigation() {
           component={Cricket}
           options={{ title: "Cricket" }}
         />
+
+        <Stack.Screen
+        name="CricketResult"
+        component={CricketResultScreen}
+        options={{ title: "Tulos" }}
+      />
 
         <Stack.Screen
           name="CricketSetup"
