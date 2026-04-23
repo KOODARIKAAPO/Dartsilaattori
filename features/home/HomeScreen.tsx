@@ -112,22 +112,22 @@ export default function HomeScreen() {
       {/* Navigaatiopainikkeet omassa kortissa */}
       <Card style={styles.buttonsCard}>
         <Card.Content style={styles.buttonsContainer}>
-          <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("Friends")}>
+          <Button mode="contained" icon="account-group" style={styles.button} onPress={() => navigation.navigate("Friends")}>
             Kaverit
           </Button>
-          <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("Stats")}>
+          <Button mode="contained" icon="chart-bar" style={styles.button} onPress={() => navigation.navigate("Stats")}>
             Tilastot
           </Button>
-          <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("Progress") }>
+          <Button mode="contained" icon="chart-line" style={styles.button} onPress={() => navigation.navigate("Progress") }>
             Kehitys
           </Button>
-          <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("Settings")}>
+          <Button mode="contained" icon="cog" style={styles.button} onPress={() => navigation.navigate("Settings")}>
             Asetukset
           </Button>
-          <Button mode="contained" style={styles.button} onPress={() => navigation.navigate("SelectGame")}>
+          <Button mode="contained" icon="bullseye-arrow" style={styles.button} onPress={() => navigation.navigate("SelectGame")}>
             Pelaa
           </Button>
-          <Button mode="outlined" style={styles.logout} onPress={handleLogout}>
+          <Button mode="outlined" icon="logout" style={styles.logout} onPress={handleLogout}>
             Kirjaudu ulos
           </Button>
         </Card.Content>
