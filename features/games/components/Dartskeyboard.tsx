@@ -276,7 +276,7 @@ const createStyles = (theme: MD3Theme) =>
     },
     buttonText: {
       color: theme.colors.onSurface,
-      fontSize: 18,
+      fontSize: 15,
       fontWeight: "700",
     },
     bullOuter: {
