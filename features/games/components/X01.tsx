@@ -11,6 +11,7 @@ import { useX01TurnInput } from "../hooks/useX01TurnInput";
 import { useX01MatchAggregates } from "../hooks/useX01MatchAggregates";
 import { useX01MatchPersistence } from "../hooks/useX01MatchPersistence";
 import DartsKeyboard from "./Dartskeyboard";
+import { BothKeyboards } from "./BothKeyboards";
 import X01BustPrompt from "./X01BustPrompt";
 import X01DoubleAttemptPrompt from "./X01DoubleAttemptPrompt";
 import X01HeaderCard from "./X01HeaderCard";
@@ -204,6 +205,10 @@ export function GameScreen({
     resetStatsTracking();
   };
 
+  const handleSubmitTurn = (score: number) => {
+  submitPlayerTurn(score);
+};
+
   const handleResetMatch = () => {
     // Nollaa koko ottelu (voitot + legi)
     // TODO: Varmista, ettei keskeneräinen ottelu ylikirjoita tallennettuja tilastoja
@@ -289,8 +294,9 @@ export function GameScreen({
             playerName={pendingDoubleTurn?.playerName}
             onSelect={handleDoubleDartsUsed}
           />
-          <DartsKeyboard
+          <BothKeyboards
             onThrow={handleThrow}
+            onSubmitTurn={handleSubmitTurn}
             onUndo={handleUndo}
             onReset={handleResetLeg}
             inputPreview={pendingDarts}
