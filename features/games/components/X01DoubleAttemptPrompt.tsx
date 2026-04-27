@@ -6,14 +6,20 @@ import type { MD3Theme } from "react-native-paper";
 type Props = {
   visible: boolean;
   playerName?: string | null;
+  minAttempts?: 0 | 1;
   onSelect: (value: number) => void;
 };
 //pelaajalta kysytään montako tikkaa tuplaan
-export default function X01DoubleAttemptPrompt({ visible, onSelect,}: Props) {
+export default function X01DoubleAttemptPrompt({
+  visible,
+  minAttempts = 0,
+  onSelect,
+}: Props) {
   
   if (!visible) return null;
   const theme = useTheme();
   const styles = createStyles(theme);
+  const options = minAttempts === 1 ? [1, 2, 3] : [0, 1, 2, 3];
 
   return (
     <Surface style={styles.prompt} elevation={1}>
@@ -21,7 +27,7 @@ export default function X01DoubleAttemptPrompt({ visible, onSelect,}: Props) {
         Montako tikkaa tuplaan?
       </Text>
       <View style={styles.buttons}>
-        {[0, 1, 2, 3].map((value) => (
+        {options.map((value) => (
           <Button
             key={`double-attempt-${value}`}
             mode="outlined"

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { useTheme } from "react-native-paper";
 import type { MD3Theme } from "react-native-paper";
 
@@ -26,8 +26,8 @@ interface Props {
   inputPreview?: PreviewItem[];
 }
 
-const { width } = Dimensions.get("window");
-const BUTTON_SIZE = width / 7 - 8;
+const BUTTON_GAP = 8;
+const GRID_COLUMNS = 7;
 
 function getPreviewValue(item: PreviewItem) {
   return typeof item === "number" ? item : item.points;
@@ -55,7 +55,11 @@ export default function DartsKeyboard({
   inputPreview,
 }: Props) {
   const theme = useTheme();
-  const styles = createStyles(theme);
+  const { width } = useWindowDimensions();
+  const keyboardWidth = Math.min(Math.max(width - 48, 280), 420);
+  const buttonSize =
+    (keyboardWidth - BUTTON_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
+  const styles = createStyles(theme, keyboardWidth, buttonSize);
   const isDisabled = Boolean(disabled);
   const [multiplier, setMultiplier] = useState<Multiplier>(1);
   const [localPreview, setLocalPreview] = useState<number[]>([]);
@@ -226,14 +230,19 @@ export default function DartsKeyboard({
   );
 }
 
-const createStyles = (theme: MD3Theme) =>
+const createStyles = (
+  theme: MD3Theme,
+  keyboardWidth: number,
+  buttonSize: number
+) =>
   StyleSheet.create({
     container: {
       paddingVertical: 10,
       gap: 10,
     },
     previewBox: {
-      alignSelf: "stretch",
+      alignSelf: "center",
+      width: keyboardWidth,
       backgroundColor: theme.colors.surfaceVariant,
       borderRadius: theme.roundness * 2,
       paddingVertical: 8,
@@ -259,18 +268,20 @@ const createStyles = (theme: MD3Theme) =>
       marginTop: 1,
     },
     grid: {
+      alignSelf: "center",
+      width: keyboardWidth,
       flexDirection: "row",
       flexWrap: "wrap",
       justifyContent: "center",
+      gap: BUTTON_GAP,
     },
     numberButton: {
-      width: BUTTON_SIZE,
-      height: BUTTON_SIZE,
-      margin: 4,
+      width: buttonSize,
+      height: buttonSize,
       backgroundColor: theme.colors.elevation.level2,
       justifyContent: "center",
       alignItems: "center",
-      borderRadius: BUTTON_SIZE / 2,
+      borderRadius: buttonSize / 2,
       borderWidth: 1,
       borderColor: theme.colors.outlineVariant,
     },
@@ -292,10 +303,11 @@ const createStyles = (theme: MD3Theme) =>
       borderColor: theme.colors.outline,
     },
     actions: {
+      alignSelf: "center",
+      width: keyboardWidth,
       flexDirection: "row",
       justifyContent: "space-between",
       marginTop: 6,
-      paddingHorizontal: 5,
       gap: 8,
     },
     actionButton: {

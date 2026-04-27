@@ -47,13 +47,19 @@ export function useX01MatchPersistence({
     if (!uid) return;
 
     const saveMatch = async () => {
+      const doublesAttempted = effectiveAttempts[mainPlayerId] ?? 0;
+      const doublesHit = Math.min(
+        matchWins[mainPlayerId] ?? 0,
+        doublesAttempted
+      );
+
       try {
         setMatchSaving(true);
         await addGameForUser(uid, {
           points: matchTotals.points,
           dartsThrown: matchTotals.dartsThrown,
-          doublesAttempted: effectiveAttempts[mainPlayerId] ?? 0,
-          doublesHit: matchWins[mainPlayerId] ?? 0,
+          doublesAttempted,
+          doublesHit,
           checkout: matchTotals.highestCheckout || null,
         });
         setMatchSaved(true);
