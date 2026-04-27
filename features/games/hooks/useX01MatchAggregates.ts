@@ -146,7 +146,7 @@ export function useX01MatchAggregates({
       const average = darts > 0 ? (points / darts) * 3 : null;
 
       const doublesAttempted = effectiveAttempts[player.id] ?? 0;
-      const doublesHit = matchWins[player.id] ?? 0;
+      const doublesHit = Math.min(matchWins[player.id] ?? 0, doublesAttempted);
 
       return {
         id: player.id,

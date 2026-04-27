@@ -63,17 +63,17 @@ export const BothKeyboards = (props: Props) => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: "relative",
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+    gap: 8,
   },
   toggle: {
-    position: "absolute",
-    right: 0,
-    top: 0,
+    alignSelf: "flex-end",
     width: 32,
     height: 32,
     borderRadius: 8,
     backgroundColor: "#333",
-    zIndex: 10,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -292,6 +292,7 @@ export function GameScreen({
           <X01DoubleAttemptPrompt
             visible={showDoublePrompt}
             playerName={pendingDoubleTurn?.playerName}
+            minAttempts={pendingDoubleTurn?.newScore === 0 ? 1 : 0}
             onSelect={handleDoubleDartsUsed}
           />
           <BothKeyboards

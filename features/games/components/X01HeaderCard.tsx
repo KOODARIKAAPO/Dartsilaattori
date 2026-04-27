@@ -86,9 +86,7 @@ export default function X01HeaderCard({
     <Surface style={styles.headerCard} elevation={1}>
       {showCurrentPlayer && currentPlayerScore != null ? (
         <>
-          <Text variant="titleMedium" style={styles.label}>
-            Vuorossa
-          </Text>
+          
           <Text variant="headlineMedium" style={styles.currentPlayerName}>
             {currentPlayerName}
           </Text>

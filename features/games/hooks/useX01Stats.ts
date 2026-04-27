@@ -88,10 +88,14 @@ export function useX01Stats({
     }
 
     const isDoubleOpportunity = (turn: ThrowTurn) => {
+      if (turn.playerId !== mainPlayerId) return false;
+
       const inStartRange =
-        turn.previousScore > 1 && turn.previousScore < 50;
-      const inEndRange = turn.newScore > 1 && turn.newScore < 50;
-      return inStartRange || inEndRange;
+        turn.previousScore > 1 && turn.previousScore <= 50;
+      const inEndRange = turn.newScore > 1 && turn.newScore <= 50;
+      const wonLeg = !turn.isBust && turn.newScore === 0;
+
+      return inStartRange || inEndRange || wonLeg;
     };
 
     const missingDouble = [...state.turns]
@@ -104,7 +108,7 @@ export function useX01Stats({
       });
 
     setPendingDoubleTurn(missingDouble ?? null);
-  }, [state.turns]);
+  }, [mainPlayerId, state.turns]);
 
   useEffect(() => {
     if (!isMatchFinished) {
